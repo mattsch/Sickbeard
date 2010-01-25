@@ -1,0 +1,140 @@
+#import sickbeard
+#from sickbeard.common import *
+#set global $title="Home"
+
+#set global $sbPath = ".."
+
+<!--#set global $topmenu="home"#-->
+<!--#set global $statpath=".."#-->
+<!--#set global $helpsubject="Home"#-->
+#import os.path
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_top.tmpl")
+
+<!--#set global $submenu=""#-->
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_hmenu.tmpl")
+
+<script>
+\$.tablesorter.addParser({ 
+    // set a unique id 
+    id: 'eps', 
+    is: function(s) { 
+        // return false so this parser is not auto detected 
+        return false; 
+    }, 
+    format: function(s) { 
+        // format your data for normalization 
+        var nums = s.split(" / ");
+        return nums[0]/nums[1]; 
+    }, 
+    // set type, either numeric or text 
+    type: 'numeric' 
+}); 
+ 
+\$.tablesorter.addParser({ 
+    // set a unique id 
+    id: 'quality', 
+    is: function(s) { 
+        // return false so this parser is not auto detected 
+        return false; 
+    }, 
+    format: function(s) { 
+        // format your data for normalization 
+        return s.toLowerCase().replace('hd',3).replace('sd',1).replace('any',0).replace('best',2); 
+    }, 
+    // set type, either numeric or text 
+    type: 'numeric' 
+}); 
+ 
+\$.tablesorter.addParser({ 
+    // set a unique id 
+    id: 'loadingNames', 
+    is: function(s) { 
+        // return false so this parser is not auto detected 
+        return false; 
+    }, 
+    format: function(s) { 
+        // format your data for normalization
+        if (s.indexOf('Loading...') == 0)
+        	return s.replace('Loading...','!!!');
+        else
+        	return s; 
+    }, 
+    // set type, either numeric or text 
+    type: 'text' 
+}); 
+ 
+\$(document).ready(function() 
+{ 
+    \$("#showListTable").tablesorter({
+    	sortList: [[5,1],[1,0]],
+    	headers: {
+    		1: { sorter: 'loadingNames'},
+    		3: { sorter: 'quality'},
+    		4: { sorter: 'eps' }
+    	}
+    }); 
+});
+</script>
+
+<h2>Show List</h2>
+
+<table id="showListTable" class="sickbeardTable tablesorter">
+
+  <thead><tr><th>Next Ep</th><th>Show</th><th>Network</th><th>Quality</th><th>Downloads</th><th>Active</th><th>Status</th></tr></thead>
+  <tbody>
+
+#for $curLoadingShow in $sickbeard.loadingShowList:
+
+  #if $sickbeard.loadingShowList[$curLoadingShow].show != None and $sickbeard.loadingShowList[$curLoadingShow].show in $sickbeard.showList:
+    #continue
+  #end if
+
+  <tr class="evenLine">
+    <td align="center">(loading)</td>
+    <td>
+    #if $sickbeard.loadingShowList[$curLoadingShow].show == None:
+    "Loading... ($curLoadingShow)
+    #else:
+    #set $curShow = $sickbeard.loadingShowList[$curLoadingShow].show
+    <a href="displayShow?show=$curShow.tvdbid">$curShow.name</a>
+    #end if
+    </td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+#end for
+
+#set $myShowList = $sickbeard.showList
+$myShowList.sort(lambda x, y: cmp(x.name, y.name))
+#for $curShow in $myShowList:
+#set $curEp = $curShow.nextEpisode()
+
+#set $curShowDownloads = [x[1] for x in $downloadedEps if int(x[0]) == $curShow.tvdbid]
+#set $curShowAll = [x[1] for x in $allEps if int(x[0]) == $curShow.tvdbid]
+#if len($curShowAll) != 0:
+  #if len($curShowDownloads) != 0:
+    #set $dlStat = str($curShowDownloads[0])+" / "+str($curShowAll[0])
+  #else
+    #set $dlStat = "0 / "+str($curShowAll[0])
+  #end if
+#else
+#set $dlStat = "?"
+#end if
+
+  <tr class="evenLine">
+    <td align="center">#if len($curEp) != 0 then $curEp[0].airdate else ""#</td>
+    <td><a href="displayShow?show=$curShow.tvdbid">$curShow.name</a></td>
+    <td>$curShow.network</td>
+    <td align="center">$qualityStrings[int($curShow.quality)]</td>
+    <td align="center">$dlStat</td>
+	<td align="center"><img src="/images/#if int($curShow.paused) == 0 and $curShow.status != "Ended" then "yes.gif\" alt=\"Y\"" else "no.gif\" alt=\"N\""# width="16" height="16"></td>
+	<td align="center">$curShow.status</td>
+  </tr>
+
+#end for
+</tbody>
+</table>
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_bottom.tmpl")

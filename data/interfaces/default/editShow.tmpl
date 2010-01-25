@@ -1,0 +1,38 @@
+#import sickbeard
+#from sickbeard import exceptions
+#set global $title="Edit "+$show.name
+
+#set global $sbPath=".."
+
+<!--#set global $topmenu="home"#-->
+<!--#set global $statpath=".."#-->
+<!--#set global $helpsubject="Home"#-->
+#import os.path
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_top.tmpl")
+
+<!--#set global $submenu="other"#-->
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_hmenu.tmpl")
+
+<h2>$show.name</h2>
+Airs: $show.airs<br />
+Status: $show.status<br />
+<br />
+<form action="editShow" method="post">
+<input type="hidden" name="show" value="$show.tvdbid">
+Location: <input type="text" name="location" value="$show._location"><br />
+Quality: <select name="quality">
+#for $quality in $qualities:
+#if $show.quality == $quality
+#set $blah = "SELECTED"
+#else
+#set $blah = ""
+#end if
+<option value="$quality" $blah>$qualityStrings[$quality]
+#end for
+</select><br />
+Use Season Folders: <input type="checkbox" name="seasonfolders" #if $show.seasonfolders == 1 then "CHECKED" else ""#><br /><br />
+Paused: <input type="checkbox" name="paused" #if $show.paused == 1 then "CHECKED" else ""#><br /><br />
+<input type="submit" value="Submit">
+</form>
+
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_bottom.tmpl")

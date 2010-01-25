@@ -1,0 +1,20 @@
+#import sickbeard
+#import os.path
+#set global $title="Config"
+
+#set global $sbPath=".."
+
+<!--#set global $topmenu="config"#-->
+<!--#set global $statpath=".."#-->
+<!--#set global $helpsubject="Configure"#-->
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_top.tmpl")
+
+<!--#set global $submenu=""#-->
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_cmenu.tmpl")
+
+<h2>Configuration</h2>
+<p>
+<b>Configfile:</b> $os.path.join($sickbeard.PROG_DIR, "config.ini")
+</p>
+
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_bottom.tmpl")

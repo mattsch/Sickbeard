@@ -1,0 +1,150 @@
+body {
+	background-color: #fff;
+	color: #000;
+}
+
+a {
+ color: #000;
+}
+
+input, select {
+
+}
+legend {
+  color: #000;
+}
+
+fieldset.EntryFieldSet {
+  border-color:#3a3a3a;
+}
+.MainMenu a {
+	color: #4e4e4e;
+}
+
+.SubMenu a {
+	color: #f5f5f5;
+}
+a:hover {
+	background-color: #ccc;
+    color:black;
+}
+
+a.current {
+	color: #ccc;
+	background-color: #000;
+
+}
+
+.blockWithBorder {
+	border-color: #b5b5b5;
+	background-color: #eeeeee;
+}
+
+.MainMenu {
+	background-color: #F5F1E4;
+
+}
+
+table {
+
+}
+
+th {
+	background: #fff;
+
+}
+
+tr.seasonheader{
+    text-align: center;
+    background-color: #fff;
+}
+
+tr.even{
+	background-color: #222222;
+    color:white;
+}
+
+tr.evenLine {
+	background-color: #F5F1E4;
+	color: black;
+}
+
+tr.odd {
+	background-color: #222222;
+    color:white;
+}
+
+tr.oddLine {
+	background-color: #F5F1E4;
+}
+
+h1 {
+  border-bottom: 1px solid #4e4e4e;
+}
+
+#first {
+	color: black;
+}
+
+#second {
+	color: black;
+}
+
+#catchfrase {
+  color: black;
+}
+.footer {
+  background-color: #F5F1E4;
+  border-top: 1px solid #000;
+  color:#4e4e4e;
+}
+
+#progressBar {
+  background-color: #cdf; 
+  border: 1px solid blue; 
+}
+
+#percentageBar {
+  background-color: #9bf; 
+}
+
+.queuelink{color:black;}
+
+.SubMenu, .blockWithBorder , a.current, tr.even, tr.odd{
+	background-color: #57442B;
+    color:white;
+}
+
+.showNotice {
+    background-color: #ff9c99;
+    color: black;
+    border: black 1px solid;
+}
+
+th  {
+background-color: #333;
+color:white;
+}
+#first, #third {
+color: #57442B;
+}
+
+a.current:hover, a:hover {
+	background-color: black;
+    color:white
+}
+
+td > a, td > a {
+color:black;
+}
+
+a.imgLink:hover {
+    background-color: transparent;
+}
+
+a.remove {
+color:black;
+}
+
+.feedEnabled{color:green;}
+.feedDisabled{color:red;}

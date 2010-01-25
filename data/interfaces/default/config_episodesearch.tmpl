@@ -1,0 +1,133 @@
+#import sickbeard
+#set global $title="Config - Episode Search"
+
+#set global $sbPath="../.."
+
+<!--#set global $topmenu="config"#-->
+<!--#set global $statpath="../.."#-->
+<!--#set global $helpsubject="Configure+General"#-->
+#import os.path
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_top.tmpl")
+
+<!--#set global $submenu="nzbactions"#-->
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_cmenu.tmpl")
+
+<h2>NZB/Torrent Options</h2>
+<form action="saveEpisodeSearch" method="POST">
+
+All non-absolute folder locations are relative to $sickbeard.PROG_DIR<br /><br />
+
+<div class="EntryBlock"><p><strong>
+    <em>NOTE:</em> Manual restart needed for web server changes!<br />
+</strong></p>
+<fieldset class="EntryFieldSet">
+
+<legend>Episode Search</legend>
+
+<input type="checkbox" name="use_nzb" #if $sickbeard.USE_NZB == True then "CHECKED" else ""#> <strong>NZBs</strong><br />
+Whether or not we should search NZB sites<br />
+<br />
+
+<input type="checkbox" name="use_torrent" #if $sickbeard.USE_TORRENT == True then "CHECKED" else ""#> <strong>Torrents</strong><br />
+Whether or not we should search Torrent sites<br />
+<br />
+
+<strong>Search Frequency:</strong><br />
+Time between searches (in minutes)<br />
+<input type="text" name="search_frequency" value="$sickbeard.SEARCH_FREQUENCY" size="4"><br />
+<br />
+
+<strong>Backlog Search Frequency:</strong><br />
+Time between backlog searches (in days)<br />
+<input type="text" name="backlog_search_frequency" value="$sickbeard.BACKLOG_SEARCH_FREQUENCY" size="4"><br />
+<br />
+
+</fieldset>
+</div>
+
+
+<div class="EntryBlock">
+<fieldset class="EntryFieldSet">
+
+
+<legend>NZB/Torrent Options</legend>
+
+<strong>NZB Action</strong><br />
+What to do with found NZBs<br />
+<select name="nzb_method">
+#set $nzb_method_text = {'blackhole': "Black hole", 'sabnzbd': "SABnzbd"}
+#for $curAction in ('sabnzbd', 'blackhole'):
+  #if $sickbeard.NZB_METHOD == $curAction:
+    #set $nzb_method = "SELECTED"
+  #else
+    #set $nzb_method = ""
+  #end if
+<option value="$curAction" $nzb_method>$nzb_method_text[$curAction]
+#end for
+</select><br />
+<br />
+
+<strong>NZB Black Hole:</strong><br />
+The directory where Sick Beard should store<br />
+your NZB files<br />
+<input type="text" name="nzb_dir" value="$sickbeard.NZB_DIR" size="35"><br />
+<br />
+
+<strong>Usenet Retention:</strong><br />
+How old should a report be before we don't download it<br />
+<input type="text" name="usenet_retention" value="$sickbeard.USENET_RETENTION" size="4"><br />
+<br />
+
+
+<strong>Torrent Black Hole:</strong><br />
+The directory where Sick Beard should store<br />
+your torrent files<br />
+<input type="text" name="torrent_dir" value="$sickbeard.TORRENT_DIR" size="35"><br />
+<br />
+
+</fieldset>
+</div>
+
+
+
+<div class="EntryBlock">
+<fieldset class="EntryFieldSet">
+
+<legend>SABnzbd</legend>
+
+<strong>Username:</strong><br />
+Your SABnzbd authentication username<br />
+<input type="text" name="sab_username" value="$sickbeard.SAB_USERNAME" size="10"><br />
+<br />
+
+<strong>Password:</strong><br />
+Your SABnzbd authentication password<br />
+<input type="password" name="sab_password" value="$sickbeard.SAB_PASSWORD" size="10"><br />
+<br />
+
+<strong>API Key:</strong><br />
+Your SABnzbd API key<br />
+<input type="text" name="sab_apikey" value="$sickbeard.SAB_APIKEY" size="35"><br />
+<br />
+
+<strong>Category:</strong><br />
+The category you want your downloads to go in (default is TV)<br />
+<input type="text" name="sab_category" value="$sickbeard.SAB_CATEGORY" size="10"><br />
+<br />
+
+<strong>IP/port:</strong><br />
+Address of your SABnzbd server (IP:port, eg. 192.168.1.100:8080)<br />
+<input type="text" name="sab_host" value="$sickbeard.SAB_HOST" size="35"><br />
+<br />
+
+</fieldset>
+</div>
+
+
+<p>
+<input type="submit" value="Save Changes">
+</p>
+</form>
+
+
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_bottom.tmpl")

@@ -1,0 +1,58 @@
+#import sickbeard.version
+#import sickbeard
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<html>
+<head>
+    <title>Sick Beard - alpha $sickbeard.version.SICKBEARD_VERSION - $title</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    #if $topmenu=="comingEpisodes" then "<meta http-equiv=\"refresh\" content=\"180\">" else ""#
+    <link rel="stylesheet" type="text/css" href="/css/default.css"/>
+    <link rel="stylesheet" type="text/css" href="/css/defaultcolors.css"/>
+    <link rel="stylesheet" type="text/css" media="all" href="/css/comingEpisodes.css" />
+    <link rel="stylesheet" type="text/css" href="/css/tablesorter.css"/>
+    <script type="text/javascript" src="/js/jquery-1.3.2.min.js"></script>
+    <script type="text/javascript" src="/js/jquery.tablesorter.min.js"></script> 
+</head>
+<body>
+#if $sickbeard.VERSION_NOTIFY and $sickbeard.version.SICKBEARD_VERSION != "trunk" and $sickbeard.NEWEST_VERSION != None and int($sickbeard.version.SICKBEARD_VERSION[1:]) < $sickbeard.NEWEST_VERSION:
+<div class="showNotice"><img class="showNoticeImg" src="/images/error.png"> <a href="http://code.google.com/p/sickbeard/downloads/list" target="_new">There is a newer version available (r$sickbeard.NEWEST_VERSION)</a></div>
+<br />
+#end if
+<h1><span id="first">Sick</span> <span id="second">Beard</span><span id="third"> alpha $sickbeard.version.SICKBEARD_VERSION</span><span id="catchfrase">This program does stuff</span></h1>
+
+#set $root=$sbPath
+
+<!--#set $mypath=$root+"/"+$topmenu#-->
+
+<span class="MainMenu">
+<!--#if $topmenu=='home'#-->
+    <a class="current" href="$mypath">Home</a> |
+<!--#else#-->
+    <a href="$root/home/">Home</a> |
+<!--#end if#-->
+
+<!--#if $topmenu=='comingEpisodes'#-->
+    <a class="current" href="$mypath/">Coming Episodes</a> |
+<!--#else#-->
+    <a href="$root/comingEpisodes/">Coming Episodes</a> |
+<!--#end if#-->
+
+<!--#if $topmenu=='history'#-->
+    <a class="current" href="$mypath/">History</a> |
+<!--#else#-->
+    <a href="$root/history/">History</a> |
+<!--#end if#-->
+
+<!--#if $topmenu=='backlog'#-->
+    <a class="current" href="$mypath/">Backlog</a> |
+<!--#else#-->
+    <a href="$root/backlog/">Backlog</a> |
+<!--#end if#-->
+
+<!--#if $topmenu=='config'#-->
+    <a class="current" href="$mypath/">Config</a> |
+<!--#else#-->
+    <a href="$root/config/">Config</a> |
+<!--#end if#-->
+</span>

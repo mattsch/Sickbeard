@@ -1,0 +1,38 @@
+#import urllib
+#import sickbeard
+#set global $title="Add Show"
+
+#set global $sbPath="../.."
+
+<!--#set global $topmenu="home"#-->
+<!--#set global $statpath="../.."#-->
+<!--#set global $helpsubject="Configure+General"#-->
+#import os.path
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_top.tmpl")
+
+<!--#set global $submenu="addShows"#-->
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_hmenu.tmpl")
+#set $myform = "/"+$topmenu+"/"+$submenu
+
+<h2>Add Show</h2>
+
+<form method="POST" action="addShow">
+#if len($resultList) == 0:
+  #set $tempName = $os.path.normpath($urllib.unquote_plus($showDir[0])).split($os.sep)
+  Show name: <input type="text" name="showName" size="30" value="$tempName[-1]">
+#else:
+  Choose the show you meant: <select name="seriesList">
+  #for $curShow in $resultList:
+    <option value="$curShow['id']">$curShow['seriesname'] (<%=str(max(curShow.keys()+[0]))%> seasons)
+  #end for
+  </select>
+#end if
+
+#for $curShow in $showDir:
+  <input type="hidden" name="showDir" value="$curShow">
+#end for 
+
+<input type="submit" value="Submit"><br />
+
+
+#include $os.path.join($sickbeard.PROG_DIR, "data/interfaces/default/inc_bottom.tmpl")
