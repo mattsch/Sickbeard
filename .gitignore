@@ -1,0 +1,7 @@
+config.ini
+sickbeard.db
+Logs
+build
+dist
+*.pyc
+
