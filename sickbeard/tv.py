@@ -26,7 +26,7 @@ import urllib
 import re
 import glob
 
-from xml.dom.minidom import Document
+from lxml import etree
 
 from lib.BeautifulSoup import BeautifulStoneSoup, NavigableString, SGMLParseError
 from lib.tvdb_api import tvdb_api, tvnamer, tvdb_exceptions
@@ -127,7 +127,8 @@ class TVShow(object):
 			raise exceptions.MultipleShowObjectsException("Can't create a show if it already exists")
 		
 		try:
-			t = tvdb_api.Tvdb(lastTimeout=sickbeard.LAST_TVDB_TIMEOUT)
+			t = tvdb_api.Tvdb(lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
+				apikey=sickbeard.TVDB_API_KEY)
 			t[self.tvdbid]
 		except tvdb_exceptions.tvdb_shownotfound as e:
 			raise exceptions.ShowNotFoundException(str(e))
@@ -295,7 +296,9 @@ class TVShow(object):
 	def loadEpisodesFromTVDB(self, cache=True):
 	
 		try:
-			t = tvdb_api.Tvdb(cache=cache, lastTimeout=sickbeard.LAST_TVDB_TIMEOUT)
+			t = tvdb_api.Tvdb(cache=cache,
+				lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
+				apikey=sickbeard.TVDB_API_KEY)
 		except tvdb_exceptions.tvdb_error:
 			Logger().log("TVDB timed out, unable to update episodes from TVDB", ERROR)
 			return None
@@ -467,7 +470,9 @@ class TVShow(object):
 
 		Logger().log(str(self.tvdbid) + ": Loading show info from theTVDB") 
 
-		t = tvdb_api.Tvdb(cache=cache, lastTimeout=sickbeard.LAST_TVDB_TIMEOUT)
+		t = tvdb_api.Tvdb(cache=cache,
+			lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
+			apikey=sickbeard.TVDB_API_KEY)
 		myEp = t[self.tvdbid]
 		
 		if myEp["airs_dayofweek"] != None and myEp["airs_time"] != None:
@@ -843,7 +848,9 @@ class TVEpisode:
 		Logger().log(str(self.show.tvdbid) + ": Loading episode details from theTVDB for episode " + str(season) + "x" + str(episode), DEBUG)
 
 		try:
-			t = tvdb_api.Tvdb(cache=cache, lastTimeout=sickbeard.LAST_TVDB_TIMEOUT)
+			t = tvdb_api.Tvdb(cache=cache,
+				lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
+				apikey=sickbeard.TVDB_API_KEY)
 			myEp = t[self.show.tvdbid][season][episode]
 		except (tvdb_exceptions.tvdb_error, IOError):
 			# if the episode is already valid just log it, if not throw it up
@@ -1017,10 +1024,10 @@ class TVEpisode:
 		
 		epsToWrite = [self] + self.relatedEps
 
-		nfo = Document()
-
 		try:
-			t = tvdb_api.Tvdb(actors=True, lastTimeout=sickbeard.LAST_TVDB_TIMEOUT)
+			t = tvdb_api.Tvdb(actors=True,
+				lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
+				apikey=sickbeard.TVDB_API_KEY)
 			myShow = t[self.show.tvdbid]
 		except tvdb_exceptions.tvdb_shownotfound as e:
 			raise exceptions.ShowNotFoundException(str(e))
@@ -1029,11 +1036,13 @@ class TVEpisode:
 			return
 
 		if len(epsToWrite) > 1:
-			dummyNode = nfo.createElement("xbmcmultiepisode")
-			nfo.appendChild(dummyNode)
-			rootNode = dummyNode
+			rootNode = etree.Element( "xbmcmultiepisode",
+				nsmap=XML_NSMAP )
+			nfo = etree.ElementTree( rootNode )
 		else:
-			rootNode = nfo
+			rootNode = etree.Element( "episodedetails",
+				nsmap=XML_NSMAP )
+			nfo = etree.ElementTree( rootNode )
 		
 		needsNFO = not self.hasnfo
 		if force:
@@ -1072,96 +1081,82 @@ class TVEpisode:
 			else:
 				Logger().log("Creating metadata for myself ("+str(self.season)+"x"+str(self.episode)+")", DEBUG)
 			
-			episode = nfo.createElement("episodedetails")
-			rootNode.appendChild(episode)
-	
-			title = nfo.createElement("title")
+			if len(epsToWrite) > 1:
+			    episode = etree.SubElement( rootNode, "episodedetails" )
+			else:
+			    episode = rootNode
+
+			title = etree.SubElement( episode, "title" )
 			if curEpToWrite.name != None:
-				title.appendChild(nfo.createTextNode(curEpToWrite.name))
-			episode.appendChild(title)
+				title.text = curEpToWrite.name
+
+			season = etree.SubElement( episode, "season" )
+			season.text = str(curEpToWrite.season)
 	
-			season = nfo.createElement("season")
-			season.appendChild(nfo.createTextNode(str(curEpToWrite.season)))
-			episode.appendChild(season)
-	
-			episodenum = nfo.createElement("episode")
-			episodenum.appendChild(nfo.createTextNode(str(curEpToWrite.episode)))
-			episode.appendChild(episodenum)
+			episodenum = etree.SubElement( episode, "episode" )
+			episodenum.text = str(curEpToWrite.episode)
 			
-			aired = nfo.createElement("aired")
-			aired.appendChild(nfo.createTextNode(str(curEpToWrite.airdate)))
-			episode.appendChild(aired)
+			aired = etree.SubElement( episode, "aired" )
+			aired.text = str(curEpToWrite.airdate)
 	
-			plot = nfo.createElement("plot")
+			plot = etree.SubElement( episode, "plot" )
 			if curEpToWrite.description != None:
-				plot.appendChild(nfo.createTextNode(curEpToWrite.description))
-			episode.appendChild(plot)
+				plot.text = curEpToWrite.description
 	
-			displayseason = nfo.createElement("displayseason")
+			displayseason = etree.SubElement( episode, "displayseason" )
 			if myEp.has_key('airsbefore_season'):
 				displayseason_text = myEp['airsbefore_season']
 				if displayseason_text != None:
-					displayseason.appendChild(nfo.createTextNode(displayseason_text))
-				episode.appendChild(displayseason)
+					displayseason.text = displayseason_text
 	
-			displayepisode = nfo.createElement("displayepisode")
+			displayepisode = etree.SubElement( episode, "displayepisode" )
 			if myEp.has_key('airsbefore_episode'):
 				displayepisode_text = myEp['airsbefore_episode']
 				if displayepisode_text != None:
-					displayepisode.appendChild(nfo.createTextNode(displayepisode_text))
-				episode.appendChild(displayepisode)
+					displayepisode.text = displayepisode_text
 	
-			thumb = nfo.createElement("thumb")
+			thumb = etree.SubElement( episode, "thumb" )
 			thumb_text = myEp['filename']
 			if thumb_text != None:
-				thumb.appendChild(nfo.createTextNode(thumb_text))
-			episode.appendChild(thumb)
+				thumb.text = thumb_text
 	
-			watched = nfo.createElement("watched")
-			watched.appendChild(nfo.createTextNode('false'))
-			episode.appendChild(watched)
+			watched = etree.SubElement( episode, "watched" )
+			watched.text = 'false'
 	
-			credits = nfo.createElement("credits")
+			credits = etree.SubElement( episode, "credits" )
 			credits_text = myEp['writer']
 			if credits_text != None:
-				credits.appendChild(nfo.createTextNode(credits_text))
-			episode.appendChild(credits)
+				credits.text = credits_text
 	
-			director = nfo.createElement("director")
+			director = etree.SubElement( episode, "director" )
 			director_text = myEp['director']
 			if director_text != None:
-				director.appendChild(nfo.createTextNode(director_text))
-			episode.appendChild(director)
+				director.text = director_text
 	
 			gueststar_text = myEp['gueststars']
 			if gueststar_text != None:
 				for actor in gueststar_text.split('|'):
-					cur_actor = nfo.createElement("actor")
-					cur_actor_name = nfo.createElement("name")
-					cur_actor_name.appendChild(nfo.createTextNode(actor))
-					cur_actor.appendChild(cur_actor_name)
-					episode.appendChild(cur_actor)
+					cur_actor = etree.SubElement( episode, "actor" )
+					cur_actor_name = etree.SubElement(
+						cur_actor, "name"
+						)
+					cur_actor_name.text = actor
 	
 			for actor in myShow['_actors']:
-				cur_actor = nfo.createElement("actor")
+				cur_actor = etree.SubElement( episode, "actor" )
 
-				cur_actor_name = nfo.createElement("name")
-				cur_actor_name.appendChild(nfo.createTextNode(actor['name']))
-				cur_actor.appendChild(cur_actor_name)
+				cur_actor_name = etree.SubElement( cur_actor, "name" )
+				cur_actor_name.text = actor['name']
 
-				cur_actor_role = nfo.createElement("role")
+				cur_actor_role = etree.SubElement( cur_actor, "role" )
 				cur_actor_role_text = actor['role']
 				if cur_actor_role_text != None:
-						cur_actor_role.appendChild(nfo.createTextNode(cur_actor_role_text))
-				cur_actor.appendChild(cur_actor_role)
+					cur_actor_role.text = cur_actor_role_text
 
-				cur_actor_thumb = nfo.createElement("thumb")
+				cur_actor_thumb = etree.SubElement( cur_actor, "thumb" )
 				cur_actor_thumb_text = actor['image']
 				if cur_actor_thumb_text != None:
-						cur_actor_thumb.appendChild(nfo.createTextNode(cur_actor_thumb_text))
-				cur_actor.appendChild(cur_actor_thumb)
-
-				episode.appendChild(cur_actor)
+					cur_actor_thumb.text = cur_actor_thumb_text
 					
 			if os.path.isfile(self.location):
 				nfoFilename = helpers.replaceExtension(self.location, 'nfo')
@@ -1170,8 +1165,8 @@ class TVEpisode:
 	
 			Logger().log('Writing nfo to ' + os.path.join(self.show.location, nfoFilename))
 			nfo_fh = open(os.path.join(self.show.location, nfoFilename), 'w')
-			a = nfo.toxml(encoding="utf-8")
-			nfo_fh.write(a)
+			nfo.write( nfo_fh, encoding="utf-8", xml_declaration=True,
+				pretty_print=True )
 			nfo_fh.close()
 			
 			for epToWrite in epsToWrite:

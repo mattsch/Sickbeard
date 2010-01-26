@@ -185,7 +185,7 @@ class NZBBot(SingleServerIRCBot):
 
         if result != None:
             Logger().log("Creating TVDB object", DEBUG)
-            t = tvdb_api.Tvdb()
+            t = tvdb_api.Tvdb(apikey=sickbeard.TVDB_API_KEY)
             Logger().log("Object created: " + str(t), DEBUG)
             
             try:
