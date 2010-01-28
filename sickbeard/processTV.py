@@ -32,7 +32,7 @@ from sickbeard import db
 from sickbeard import history
 from sickbeard import classes
 
-from sickbeard.logging import *
+from sickbeard import logger
 from sickbeard.common import *
 
 from sickbeard.notifiers import xbmc
@@ -49,12 +49,12 @@ def renameFile(curFile, newName):
     oldFile = os.path.splitext(filePath[1])
 
     newFilename = os.path.join(filePath[0], helpers.sanitizeFileName(newName) + oldFile[1])
-    Logger().log("Renaming from " + curFile + " to " + newFilename)
+    logger.log("Renaming from " + curFile + " to " + newFilename)
 
     try:
         os.rename(curFile, newFilename)
     except (OSError, IOError) as e:
-        Logger().log("Failed renaming " + curFile + " to " + os.path.basename(newFilename) + ": " + str(e), ERROR)
+        logger.log("Failed renaming " + curFile + " to " + os.path.basename(newFilename) + ": " + str(e), logger.ERROR)
         return False
 
     return newFilename
@@ -82,7 +82,7 @@ def findMainFile (show_dir):
 
     # it should be by far the biggest file in the folder. If it isn't, we have a problem (multi-show nzb or something, not going to deal with it)
     if float(next_biggest_file_size) / float(biggest_file_size) > sample_ratio:
-        Logger().log("Multiple files in the folder are comparably large, giving up", ERROR)
+        logger.log("Multiple files in the folder are comparably large, giving up", logger.ERROR)
         return None
 
     return os.path.join(show_dir, biggest_file)
@@ -105,23 +105,39 @@ def _checkForExistingFile(newFile, oldFile):
             
 
 
-def doIt(downloadDir, nzbName=None):
+def doIt(downloaderDir, nzbName=None):
     
     returnStr = ""
+
+    downloadDir = ''
+
+    # if they passed us a real dir then assume it's the one we want
+    if os.path.isdir(downloaderDir):
+        downloadDir = os.path.abspath(downloaderDir)
     
+    # if they've got a download dir configured then use it
+    elif sickbeard.TV_DOWNLOAD_DIR != '' and os.path.isdir(sickbeard.TV_DOWNLOAD_DIR):
+        downloadDir = os.path.join(sickbeard.TV_DOWNLOAD_DIR, os.path.abspath(downloaderDir).split(os.path.sep)[-1])
+
+        logStr = "Trying to use folder "+downloadDir
+        logger.log(logStr, logger.DEBUG)
+        returnStr += logStr + "\n"
+
+    # if we didn't find a real dir then quit
     if not os.path.isdir(downloadDir):
-        return "Uh, this is not a directory: " + str(downloadDir)
-    
-    # pretty up the path, just in case
-    downloadDir = os.path.abspath(downloadDir)
-    logStr = "Pretty'd up folder is " + downloadDir
-    Logger().log(logStr, DEBUG)
+        logStr = "Unable to figure out what folder to process. If your downloader and Sick Beard aren't on the same PC make sure you fill out your TV download dir in the config."
+        logger.log(logStr, logger.DEBUG)
+        returnStr += logStr + "\n"
+        return returnStr
+
+    logStr = "Final folder name is " + downloadDir
+    logger.log(logStr, logger.DEBUG)
     returnStr += logStr + "\n"
     
     # TODO: check if it's failed and deal with it if it is
     if downloadDir.startswith('_FAILED_'):
         logStr = "The directory name indicates it failed to extract, cancelling"
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         return returnStr
     
@@ -129,12 +145,12 @@ def doIt(downloadDir, nzbName=None):
     biggest_file = findMainFile(downloadDir)
     if biggest_file == None:
         logStr = "Unable to find the biggest file - is this really a TV download?"
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         return returnStr
         
     logStr = "The biggest file in the dir is: " + biggest_file
-    Logger().log(logStr, DEBUG)
+    logger.log(logStr, logger.DEBUG)
     returnStr += logStr + "\n"
     
     # use file name, folder name, and NZB name (in that order) to try to figure out the episode info
@@ -149,13 +165,13 @@ def doIt(downloadDir, nzbName=None):
     
         result = tvnamer.processSingleName(curName)
         logStr = curName + " parsed into: " + str(result)
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
     
         # if this one doesn't work try the next one
         if result == None:
             logStr = "Unable to parse this name"
-            Logger().log(logStr, DEBUG)
+            logger.log(logStr, logger.DEBUG)
             returnStr += logStr + "\n"
             continue
 
@@ -168,7 +184,7 @@ def doIt(downloadDir, nzbName=None):
         except (tvdb_exceptions.tvdb_exception, IOError) as e:
 
             logStr = "TVDB didn't respond, trying to look up the show in the DB instead"
-            Logger().log(logStr, DEBUG)
+            logger.log(logStr, logger.DEBUG)
             returnStr += logStr + "\n"
 
             showInfo = helpers.searchDBForShow(result["file_seriesname"])
@@ -185,7 +201,7 @@ def doIt(downloadDir, nzbName=None):
         
         if showResults != None:
             logStr = "Found the show in our list, continuing"
-            Logger().log(logStr, DEBUG)
+            logger.log(logStr, logger.DEBUG)
             returnStr += logStr + "\n"
             break
     
@@ -193,19 +209,19 @@ def doIt(downloadDir, nzbName=None):
         
     if result == None:
         logStr = "Unable to figure out what this episode is, giving up"
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         return returnStr
 
     if showResults == None:
         logStr = "The episode doesn't match a show in my list - bad naming?"
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         return returnStr
 
     if not os.path.isdir(showResults._location):
         logStr = "The show dir doesn't exist, canceling postprocessing"
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         return returnStr
 
@@ -218,7 +234,7 @@ def doIt(downloadDir, nzbName=None):
         episode = int(curEpisode)
     
         logStr = "TVDB thinks the file is " + showInfo[1] + str(season) + "x" + str(episode)
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         
         # now that we've figured out which episode this file is just load it manually
@@ -265,14 +281,14 @@ def doIt(downloadDir, nzbName=None):
             seasonFolder = 'Season ' + str(rootEp.season)
 
     logStr = "Seasonfolders were " + str(rootEp.show.seasonfolders) + " which gave " + seasonFolder
-    Logger().log(logStr, DEBUG)
+    logger.log(logStr, logger.DEBUG)
     returnStr += logStr + "\n"
 
     destDir = os.path.join(rootEp.show.location, seasonFolder)
     
     newFile = os.path.join(destDir, helpers.sanitizeFileName(rootEp.prettyName())+biggestFileExt)
     logStr = "The ultimate destination for " + biggest_file + " is " + newFile
-    Logger().log(logStr, DEBUG)
+    logger.log(logStr, logger.DEBUG)
     returnStr += logStr + "\n"
 
     existingResult = _checkForExistingFile(newFile, biggest_file)
@@ -286,28 +302,28 @@ def doIt(downloadDir, nzbName=None):
     # see if the existing file is bigger - if it is, bail
     if existingResult == 1:
         logStr = "There is already a file that's bigger at "+newFile+" - not processing this episode."
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         return returnStr
         
     # if the dir doesn't exist (new season folder) then make it
     if not os.path.isdir(destDir):
         logStr = "Season folder didn't exist, creating it"
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         os.mkdir(destDir)
 
-    Logger().log("Moving from " + biggest_file + " to " + destDir, DEBUG)
+    logger.log("Moving from " + biggest_file + " to " + destDir, logger.DEBUG)
     try:
         shutil.move(biggest_file, destDir)
         
         logStr = "File was moved successfully"
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         
     except IOError as e:
         logStr = "Unable to move the file: " + str(e)
-        Logger().log(logStr, ERROR)
+        logger.log(logStr, logger.ERROR)
         returnStr += logStr + "\n"
         return returnStr
 
@@ -319,7 +335,7 @@ def doIt(downloadDir, nzbName=None):
             existingFile = rootEp.location
         
         logStr = existingFile + " already exists but it's smaller than the new file so I'm replacing it"
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
         os.remove(existingFile)
 
@@ -328,11 +344,11 @@ def doIt(downloadDir, nzbName=None):
     try:
         os.rename(curFile, newFile)
         logStr = "Renaming the file " + curFile + " to " + newFile
-        Logger().log(logStr, DEBUG)
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
     except (OSError, IOError) as e:
         logStr = "Failed renaming " + curFile + " to " + newFile + ": " + str(e)
-        Logger().log(logStr, ERROR)
+        logger.log(logStr, logger.ERROR)
         returnStr += logStr + "\n"
         return returnStr
 
@@ -354,17 +370,18 @@ def doIt(downloadDir, nzbName=None):
     if sickbeard.XBMC_UPDATE_LIBRARY == True and rootEp.status != PREDOWNLOADED:
         notifiers.xbmc.updateLibrary(rootEp.show.location)
 
-    logStr = "Deleting folder " + downloadDir
-    Logger().log(logStr, DEBUG)
-    returnStr += logStr + "\n"
-    
-    # delete the old folder full of useless files
-    try:
-        shutil.rmtree(downloadDir)
-    except (OSError, IOError) as e:
-        logStr = "Warning: unable to remove the folder " + downloadDir + ": " + str(e)
-        Logger().log(logStr, ERROR)
+    # delete the old folder unless the config wants us not to
+    if not sickbeard.KEEP_PROCESSED_DIR:
+        logStr = "Deleting folder " + downloadDir
+        logger.log(logStr, logger.DEBUG)
         returnStr += logStr + "\n"
+        
+        try:
+            shutil.rmtree(downloadDir)
+        except (OSError, IOError) as e:
+            logStr = "Warning: unable to remove the folder " + downloadDir + ": " + str(e)
+            logger.log(logStr, logger.ERROR)
+            returnStr += logStr + "\n"
 
     return returnStr
 

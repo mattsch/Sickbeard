@@ -26,15 +26,38 @@ import codecs
 import urllib
 import re
 
+import sickbeard
+
 from sickbeard.exceptions import *
-from sickbeard.logging import *
+from sickbeard import logger
 from sickbeard.common import mediaExtensions, XML_NSMAP
 
 from sickbeard import db
 
 from lib.tvdb_api import tvdb_api, tvdb_exceptions
 
-from lxml import etree
+import xml.etree.cElementTree as etree
+
+def indentXML(elem, level=0):
+    '''
+    Does our pretty printing, makes Matt very happy
+    '''
+    i = "\n" + level*"  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indentXML(elem, level+1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        # Strip out the newlines from text
+        if elem.text:
+            elem.text = elem.text.replace('\n', ' ')
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 
 def replaceExtension (file, newExt):
 	sepFile = file.rpartition(".")
@@ -133,34 +156,35 @@ def makeDir (dir):
 
 def makeShowNFO(showID, showDir):
 
-	Logger().log("Making NFO for show "+str(showID)+" in dir "+showDir, DEBUG)
+	logger.log("Making NFO for show "+str(showID)+" in dir "+showDir, logger.DEBUG)
 
 	if not makeDir(showDir):
-		Logger().log("Unable to create show dir, can't make NFO", ERROR)
+		logger.log("Unable to create show dir, can't make NFO", logger.ERROR)
 		return False
 
 	t = tvdb_api.Tvdb(apikey=sickbeard.TVDB_API_KEY)
 	
-	tvNode = etree.Element( "tvshow", nsmap=XML_NSMAP )
-	nfo = etree.ElementTree( tvNode )
+	tvNode = etree.Element( "tvshow" )
+	for ns in XML_NSMAP.keys():
+		tvNode.set(ns, XML_NSMAP[ns])
 
 	try:
 		myShow = t[int(showID)]
 	except tvdb_exceptions.tvdb_shownotfound:
-		Logger().log("Unable to find show with id " + str(showID) + " on tvdb, skipping it", ERROR)
+ 		logger.log("Unable to find show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
 		raise
 		return False
 	except tvdb_exceptions.tvdb_error:
-		Logger().log("TVDB is down, can't use its data to add this show", ERROR)
+ 		logger.log("TVDB is down, can't use its data to add this show", logger.ERROR)
 		return False
 
 	# check for title and id
 	try:
 		if myShow["seriesname"] == None or myShow["seriesname"] == "" or myShow["id"] == None or myShow["id"] == "":
-			Logger().log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", ERROR)
+ 			logger.log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
 			return False
 	except tvdb_exceptions.tvdb_attributenotfound:
-		Logger().log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", ERROR)
+ 		logger.log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
 		return False
 	
 	title = etree.SubElement( tvNode, "title" )
@@ -206,10 +230,14 @@ def makeShowNFO(showID, showDir):
 	if myShow["network"] != None:
 		studio.text = myShow["network"]
 	
-	Logger().log("Writing NFO to "+os.path.join(showDir, "tvshow.nfo"), DEBUG)
+ 	logger.log("Writing NFO to "+os.path.join(showDir, "tvshow.nfo"), logger.DEBUG)
+
+	# Make it purdy
+	indentXML( tvNode )
+
 	nfo_fh = open(os.path.join(showDir, "tvshow.nfo"), 'w')
-	nfo.write( nfo_fh, encoding="utf-8", xml_declaration=True,
-		pretty_print=True )
+	nfo = etree.ElementTree( tvNode )
+	nfo.write( nfo_fh, encoding="utf-8" )
 	nfo_fh.close()
 
 	return True
@@ -223,9 +251,9 @@ def searchDBForShow(showName):
 	
 	if len(sqlResults) != 1:
 		if len(sqlResults) == 0:
-			Logger().log("Unable to match a record in the DB for "+showName, DEBUG)
+			logger.log("Unable to match a record in the DB for "+showName, logger.DEBUG)
 		else:
-			Logger().log("Multiple results for "+showName+" in the DB, unable to match show name", DEBUG)
+			logger.log("Multiple results for "+showName+" in the DB, unable to match show name", logger.DEBUG)
 		return None
 	
 	return (int(sqlResults[0]["tvdb_id"]), sqlResults[0]["show_name"])

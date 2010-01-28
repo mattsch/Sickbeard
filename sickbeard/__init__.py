@@ -23,12 +23,16 @@ import webbrowser
 import sqlite3
 import datetime
 import socket
+import os
 
 from threading import Lock
 
-from sickbeard import searchCurrent, searchBacklog, updateShows, tvnzbbot, helpers, db, exceptions, showAdder, scheduler, versionChecker
-from sickbeard.logging import *
+from sickbeard import searchCurrent, searchBacklog, updateShows
+from sickbeard import helpers, db, exceptions, showAdder, scheduler, versionChecker
+from sickbeard import logger
+
 from sickbeard.common import *
+
 
 SOCKET_TIMEOUT = 30
 
@@ -89,6 +93,10 @@ DEFAULT_BACKLOG_SEARCH_FREQUENCY = 7
 
 USE_TORRENT = False
 TORRENT_DIR = None
+
+PROCESS_AUTOMATICALLY = False
+KEEP_PROCESSED_DIR = False
+TV_DOWNLOAD_DIR = None
 
 NEWZBIN = False
 NEWZBIN_USERNAME = None
@@ -168,7 +176,7 @@ def check_setting_int(config, cfg_name, item_name, def_val):
         except:
             config[cfg_name] = {}
             config[cfg_name][item_name] = my_val
-    Logger().log(item_name + " -> " + str(my_val), DEBUG)
+    logger.log(item_name + " -> " + str(my_val), logger.DEBUG)
     return my_val
 
 ################################################################################
@@ -185,7 +193,7 @@ def check_setting_float(config, cfg_name, item_name, def_val):
             config[cfg_name] = {}
             config[cfg_name][item_name] = my_val
 
-    Logger().log(item_name + " -> " + str(my_val), DEBUG)
+    logger.log(item_name + " -> " + str(my_val), logger.DEBUG)
     return my_val
 
 ################################################################################
@@ -203,9 +211,9 @@ def check_setting_str(config, cfg_name, item_name, def_val, log=True):
             config[cfg_name][item_name] = my_val
 
     if log:
-        Logger().log(item_name + " -> " + my_val, DEBUG)
+        logger.log(item_name + " -> " + my_val, logger.DEBUG)
     else:
-        Logger().log(item_name + " -> ******", DEBUG)
+        logger.log(item_name + " -> ******", logger.DEBUG)
     return my_val
 
 
@@ -224,8 +232,8 @@ def initialize():
                 SEARCH_FREQUENCY, DEFAULT_SEARCH_FREQUENCY, BACKLOG_SEARCH_FREQUENCY, \
                 DEFAULT_BACKLOG_SEARCH_FREQUENCY, QUALITY_DEFAULT, SEASON_FOLDERS_DEFAULT, showUpdateScheduler, \
                 USE_GROWL, GROWL_HOST, GROWL_PASSWORD, PROG_DIR, NZBMATRIX, NZBMATRIX_USERNAME, \
-                NZBMATRIX_APIKEY, versionCheckScheduler, VERSION_NOTIFY, \
-		TVDB_API_KEY, TVDB_BASE_URL
+                NZBMATRIX_APIKEY, versionCheckScheduler, VERSION_NOTIFY, PROCESS_AUTOMATICALLY, \
+                KEEP_PROCESSED_DIR, TV_DOWNLOAD_DIR, TVDB_API_KEY, TVDB_BASE_URL
         
         if __INITIALIZED__:
             return False
@@ -243,7 +251,7 @@ def initialize():
         
         LOG_DIR = check_setting_str(CFG, 'General', 'log_dir', 'Logs')
         if not helpers.makeDir(LOG_DIR):
-            Logger().log("!!! No log folder, logging to screen only!", ERROR)
+            logger.log("!!! No log folder, logging to screen only!", logger.ERROR)
 
         try:
             WEB_PORT = check_setting_int(CFG, 'General', 'web_port', 8081)
@@ -281,6 +289,10 @@ def initialize():
         NZB_DIR = check_setting_str(CFG, 'Blackhole', 'nzb_dir', '')
         TORRENT_DIR = check_setting_str(CFG, 'Blackhole', 'torrent_dir', '')
         
+        TV_DOWNLOAD_DIR = check_setting_str(CFG, 'General', 'tv_download_dir', '')
+        PROCESS_AUTOMATICALLY = check_setting_int(CFG, 'General', 'process_automatically', 0)
+        KEEP_PROCESSED_DIR = check_setting_int(CFG, 'General', 'keep_processed_dir', 0)
+        
         NEWZBIN = bool(check_setting_int(CFG, 'Newzbin', 'newzbin', 0))
         NEWZBIN_USERNAME = check_setting_str(CFG, 'Newzbin', 'newzbin_username', '')
         NEWZBIN_PASSWORD = check_setting_str(CFG, 'Newzbin', 'newzbin_password', '')
@@ -300,7 +312,7 @@ def initialize():
         SAB_USERNAME = check_setting_str(CFG, 'SABnzbd', 'sab_username', '')
         SAB_PASSWORD = check_setting_str(CFG, 'SABnzbd', 'sab_password', '')
         SAB_APIKEY = check_setting_str(CFG, 'SABnzbd', 'sab_apikey', '')
-        SAB_CATEGORY = check_setting_str(CFG, 'SABnzbd', 'sab_category', '')
+        SAB_CATEGORY = check_setting_str(CFG, 'SABnzbd', 'sab_category', 'tv')
         SAB_HOST = check_setting_str(CFG, 'SABnzbd', 'sab_host', '')
 
         IRC_BOT = bool(check_setting_int(CFG, 'IRC', 'irc_bot', 0))
@@ -321,6 +333,8 @@ def initialize():
         GROWL_HOST = check_setting_str(CFG, 'Growl', 'growl_host', '')
         GROWL_PASSWORD = check_setting_str(CFG, 'Growl', 'growl_password', '')
         
+        logger.initLogging()
+	
         currentSearchScheduler = scheduler.Scheduler(searchCurrent.CurrentSearcher(),
                                                      cycleTime=datetime.timedelta(minutes=SEARCH_FREQUENCY),
                                                      threadName="SEARCH",
@@ -406,47 +420,47 @@ def halt ():
         
         if __INITIALIZED__:
 
-            Logger().log("Aborting all threads")
+            logger.log("Aborting all threads")
             
             # abort all the threads
 
             currentSearchScheduler.abort = True
-            Logger().log("Waiting for the SEARCH thread to exit")
+            logger.log("Waiting for the SEARCH thread to exit")
             try:
                 currentSearchScheduler.thread.join(10)
             except:
                 pass
             
             backlogSearchScheduler.abort = True
-            Logger().log("Waiting for the BACKLOG thread to exit")
+            logger.log("Waiting for the BACKLOG thread to exit")
             try:
                 backlogSearchScheduler.thread.join(10)
             except:
                 pass
 
             updateScheduler.abort = True
-            Logger().log("Waiting for the UPDATE thread to exit")
+            logger.log("Waiting for the UPDATE thread to exit")
             try:
                 updateScheduler.thread.join(10)
             except:
                 pass
             
             showAddScheduler.abort = True
-            Logger().log("Waiting for the SHOWADDER thread to exit")
+            logger.log("Waiting for the SHOWADDER thread to exit")
             try:
                 showAddScheduler.thread.join(10)
             except:
                 pass
             
             showUpdateScheduler.abort = True
-            Logger().log("Waiting for the SHOWUPDATER thread to exit")
+            logger.log("Waiting for the SHOWUPDATER thread to exit")
             try:
                 showUpdateScheduler.thread.join(10)
             except:
                 pass
             
             versionCheckScheduler.abort = True
-            Logger().log("Waiting for the VERSIONCHECKER thread to exit")
+            logger.log("Waiting for the VERSIONCHECKER thread to exit")
             try:
                 versionCheckScheduler.thread.join(10)
             except:
@@ -455,7 +469,7 @@ def halt ():
 
             if False:
                 botRunner.abort = True
-                Logger().log("Waiting for the IRC thread to exit")
+                logger.log("Waiting for the IRC thread to exit")
                 try:
                     botRunner.thread.join(10)
                 except:
@@ -467,7 +481,7 @@ def halt ():
 def sig_handler(signum=None, frame=None):
     if type(signum) != type(None):
         #logging.warning('[%s] Signal %s caught, saving and exiting...', __NAME__, signum)
-        Logger().log("Signal {0} caught, saving and exiting...".format(signum))
+        logger.log("Signal {0} caught, saving and exiting...".format(signum))
         cherrypy.engine.exit()
         saveAndShutdown()
     
@@ -477,16 +491,13 @@ def saveAll():
     global showList
     
     # write all shows
-    Logger().log("Saving all shows to the database")
+    logger.log("Saving all shows to the database")
     for show in showList:
         show.saveToDB()
     
     # save config
-    Logger().log("Saving config file to disk")
+    logger.log("Saving config file to disk")
     save_config()
-    
-    Logger().log("Shutting down logging")
-    Logger().shutdown()
     
 
 def saveAndShutdown():
@@ -507,8 +518,8 @@ def save_config():
         XBMC_UPDATE_LIBRARY, XBMC_HOST, XBMC_PASSWORD, XBMC_USERNAME, CFG, LAUNCH_BROWSER, CREATE_METADATA, USE_NZB, \
         USE_TORRENT, TORRENT_DIR, USENET_RETENTION, SEARCH_FREQUENCY, BACKLOG_SEARCH_FREQUENCY, \
         QUALITY_DEFAULT, SEASON_FOLDERS_DEFAULT, USE_GROWL, GROWL_HOST, GROWL_PASSWORD, \
-        NZBMATRIX, NZBMATRIX_USERNAME, NZBMATRIX_APIKEY, VERSION_NOTIFY, \
-	TVDB_API_KEY
+        NZBMATRIX, NZBMATRIX_USERNAME, NZBMATRIX_APIKEY, VERSION_NOTIFY, TV_DOWNLOAD_DIR, \
+        PROCESS_AUTOMATICALLY, KEEP_PROCESSED_DIR, TVDB_API_KEY
 
         
     CFG['General']['log_dir'] = LOG_DIR
@@ -527,6 +538,9 @@ def save_config():
     CFG['General']['use_torrent'] = int(USE_TORRENT)
     CFG['General']['launch_browser'] = int(LAUNCH_BROWSER)
     CFG['General']['create_metadata'] = int(CREATE_METADATA)
+    CFG['General']['tv_download_dir'] = TV_DOWNLOAD_DIR
+    CFG['General']['keep_processed_dir'] = int(KEEP_PROCESSED_DIR)
+    CFG['General']['process_automatically'] = int(PROCESS_AUTOMATICALLY)
     CFG['General']['tvdb_api_key'] = TVDB_API_KEY
     CFG['Blackhole']['nzb_dir'] = NZB_DIR
     CFG['Blackhole']['torrent_dir'] = TORRENT_DIR
@@ -567,7 +581,7 @@ def save_config():
 
 def restart():
     
-    sickbeard.halt()
+    halt()
 
     saveAll()
     
@@ -582,12 +596,12 @@ def launchBrowser(browserURL):
         try:
             webbrowser.open(browserURL, 1, 1)
         except:
-            Logger().log("Unable to launch a browser", ERROR)
+            logger.log("Unable to launch a browser", logger.ERROR)
 
 
 def updateMissingList():
     
-    Logger().log("Searching DB and building list of MISSED episodes")
+    logger.log("Searching DB and building list of MISSED episodes")
     
     myDB = db.DBConnection()
     sqlResults = myDB.select("SELECT * FROM tv_episodes WHERE status=" + str(MISSED))
@@ -599,7 +613,7 @@ def updateMissingList():
         try:
             show = helpers.findCertainShow (sickbeard.showList, int(sqlEp["showid"]))
         except exceptions.MultipleShowObjectsException:
-            Logger().log("ERROR: expected to find a single show matching " + sqlEp["showid"]) 
+            logger.log("ERROR: expected to find a single show matching " + sqlEp["showid"]) 
             return None
         
         # we aren't ever downloading specials
@@ -612,7 +626,7 @@ def updateMissingList():
         ep = show.getEpisode(sqlEp["season"], sqlEp["episode"])
         
         if ep == None:
-            Logger().log("Somehow "+show.name+" - "+str(sqlEp["season"])+"x"+str(sqlEp["episode"])+" is None", ERROR)
+            logger.log("Somehow "+show.name+" - "+str(sqlEp["season"])+"x"+str(sqlEp["episode"])+" is None", logger.ERROR)
         else:
             epList.append(ep)
 
@@ -621,7 +635,7 @@ def updateMissingList():
 
 def updateAiringList():
     
-    Logger().log("Searching DB and building list of airing episodes")
+    logger.log("Searching DB and building list of airing episodes")
     
     curDate = datetime.date.today().toordinal()
 
@@ -635,10 +649,10 @@ def updateAiringList():
         try:
             show = helpers.findCertainShow (sickbeard.showList, int(sqlEp["showid"]))
         except exceptions.MultipleShowObjectsException:
-            Logger().log("ERROR: expected to find a single show matching " + sqlEp["showid"]) 
+            logger.log("ERROR: expected to find a single show matching " + sqlEp["showid"]) 
             return None
         except exceptions.SickBeardException as e:
-            Logger().log("Unexpected exception: "+str(e), ERROR)
+            logger.log("Unexpected exception: "+str(e), logger.ERROR)
             continue
 
         # we aren't ever downloading specials
@@ -651,7 +665,7 @@ def updateAiringList():
         ep = show.getEpisode(sqlEp["season"], sqlEp["episode"])
         
         if ep == None:
-            Logger().log("Somehow "+show.name+" - "+str(sqlEp["season"])+"x"+str(sqlEp["episode"])+" is None", ERROR)
+            logger.log("Somehow "+show.name+" - "+str(sqlEp["season"])+"x"+str(sqlEp["episode"])+" is None", logger.ERROR)
         else:
             epList.append(ep)
 
@@ -668,7 +682,7 @@ def updateComingList():
         try:
             curEps = curShow.nextEpisode()
         except exceptions.NoNFOException as e:
-            Logger().log("Unable to retrieve episode from show: "+str(e), ERROR)
+            logger.log("Unable to retrieve episode from show: "+str(e), logger.ERROR)
         
         for myEp in curEps:
             if myEp.season != 0:
