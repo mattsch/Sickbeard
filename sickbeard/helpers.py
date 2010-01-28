@@ -162,7 +162,7 @@ def makeShowNFO(showID, showDir):
 		logger.log("Unable to create show dir, can't make NFO", logger.ERROR)
 		return False
 
-	t = tvdb_api.Tvdb(apikey=sickbeard.TVDB_API_KEY)
+	t = tvdb_api.Tvdb(apikey=sickbeard.TVDB_API_KEY, actors=True)
 	
 	tvNode = etree.Element( "tvshow" )
 	for ns in XML_NSMAP.keys():
@@ -229,6 +229,22 @@ def makeShowNFO(showID, showDir):
 	studio = etree.SubElement( tvNode, "studio" )
 	if myShow["network"] != None:
 		studio.text = myShow["network"]
+
+	for actor in myShow['_actors']:
+		cur_actor = etree.SubElement( tvNode, "actor" )
+
+		cur_actor_name = etree.SubElement( cur_actor, "name" )
+		cur_actor_name.text = actor['name']
+
+		cur_actor_role = etree.SubElement( cur_actor, "role" )
+		cur_actor_role_text = actor['role']
+		if cur_actor_role_text != None:
+			cur_actor_role.text = cur_actor_role_text
+
+		cur_actor_thumb = etree.SubElement( cur_actor, "thumb" )
+		cur_actor_thumb_text = actor['image']
+		if cur_actor_thumb_text != None:
+			cur_actor_thumb.text = cur_actor_thumb_text
 	
  	logger.log("Writing NFO to "+os.path.join(showDir, "tvshow.nfo"), logger.DEBUG)
 
