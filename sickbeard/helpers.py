@@ -162,7 +162,13 @@ def makeShowNFO(showID, showDir):
 		logger.log("Unable to create show dir, can't make NFO", logger.ERROR)
 		return False
 
-	t = tvdb_api.Tvdb(apikey=sickbeard.TVDB_API_KEY, actors=True)
+	# Don't get banner info unless it's requested
+	if sickbeard.TVDB_ART_TYPES:
+	    get_banners = True
+	else:
+	    get_banners = False
+
+	t = tvdb_api.Tvdb(apikey=sickbeard.TVDB_API_KEY, actors=True, banners=get_banners)
 	
 	tvNode = etree.Element( "tvshow" )
 	for ns in XML_NSMAP.keys():
@@ -171,20 +177,20 @@ def makeShowNFO(showID, showDir):
 	try:
 		myShow = t[int(showID)]
 	except tvdb_exceptions.tvdb_shownotfound:
- 		logger.log("Unable to find show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
+ 		logger.log("Unable to find show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
 		raise
 		return False
 	except tvdb_exceptions.tvdb_error:
- 		logger.log("TVDB is down, can't use its data to add this show", logger.ERROR)
+ 		logger.log("TVDB is down, can't use its data to add this show", logger.ERROR)
 		return False
 
 	# check for title and id
 	try:
 		if myShow["seriesname"] == None or myShow["seriesname"] == "" or myShow["id"] == None or myShow["id"] == "":
- 			logger.log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
+ 			logger.log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
 			return False
 	except tvdb_exceptions.tvdb_attributenotfound:
- 		logger.log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
+ 		logger.log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
 		return False
 	
 	title = etree.SubElement( tvNode, "title" )
@@ -246,7 +252,7 @@ def makeShowNFO(showID, showDir):
 		if cur_actor_thumb_text != None:
 			cur_actor_thumb.text = cur_actor_thumb_text
 	
- 	logger.log("Writing NFO to "+os.path.join(showDir, "tvshow.nfo"), logger.DEBUG)
+ 	logger.log("Writing NFO to "+os.path.join(showDir, "tvshow.nfo"), logger.DEBUG)
 
 	# Make it purdy
 	indentXML( tvNode )
@@ -256,8 +262,68 @@ def makeShowNFO(showID, showDir):
 	nfo.write( nfo_fh, encoding="utf-8" )
 	nfo_fh.close()
 
+	if sickbeard.TVDB_ART_TYPES:
+	    getShowGraphics(myShow, showDir)
+
 	return True
 
+def getShowGraphics(myShow, showDir):
+	'''
+	Pick from the following graphics:
+	poster/banner, season/seasonwide, fanart
+	'''
+	logger.log("Grabbing graphics for show "+str(myShow['id'])+" in dir "+showDir, logger.DEBUG)
+
+	graphicsList = sickbeard.TVDB_ART_TYPES.split()
+
+	posterID = None
+	fanartID = None
+	bannerID = None
+	seasonID = None
+
+	fileMap = {'banner': 'folder', 'poster': 'folder', 'season': 'season',
+		'seasonwide': 'season', 'fanart': 'fanart'}
+
+	fanartMap = {'HQ': '1920x1080', 'SQ': '1280x720'}
+
+	if os.path.isfile(os.path.join(showDir, 'folder.jpg')):
+		hasPoster = True
+	else:
+		hasPoster = False
+	
+	if os.path.isfile(os.path.join(showDir, 'fanart.jpg')):
+		hasFanart = True
+	else:
+		hasFanart = False
+	
+	# Get our standard poster first
+	# FIXME - should be selectable and use the local xml instead remote
+	try:
+		posterID = myShow['_banners']['poster']['680x1000'].keys()[0]
+	except:
+		logger.log("No poster for show with id " + str(showID), logger.ERROR)
+	    
+	if posterID and not hasPoster:
+		posterURL = myShow['_banners']['poster']['680x1000'][posterID]['_bannerpath']
+		try:   
+		    urllib.urlretrieve(posterURL, os.path.join(showDir, 'folder.jpg'))
+		except IOError:
+		    logger.log("Unable to download thumbnail from " + posterURL, logger.ERROR)
+		    return
+	try:
+		fanartID = myShow['_banners']['fanart']['1920x1080'].keys()[0]
+	except:
+		logger.log("No fanart for show with id " + str(showID), logger.ERROR)
+	    
+	if fanartID and not hasFanart:
+		fanartURL = myShow['_banners']['fanart']['1920x1080'][fanartID]['_bannerpath']
+		try:   
+		    urllib.urlretrieve(fanartURL, os.path.join(showDir, 'fanart.jpg'))
+		except IOError:
+		    logger.log("Unable to download fanart from " + fanartURL, logger.ERROR)
+		    return
+
+	return True
 
 def searchDBForShow(showName):
 	

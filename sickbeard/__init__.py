@@ -81,6 +81,9 @@ TVDB_API_KEY = None
 # http://thetvdb.com/?tab=apiregister
 DEFAULT_TVDB_API_KEY = '0629B785CE550C8D'
 TVDB_BASE_URL = None
+TVDB_ART_TYPES = None
+TVDB_ART_QUALITY = None
+DEFAULT_TVDB_ART_QUALITY = 'HQ'
 
 USE_NZB = False
 NZB_METHOD = None 
@@ -235,7 +238,8 @@ def initialize():
                 DEFAULT_BACKLOG_SEARCH_FREQUENCY, QUALITY_DEFAULT, SEASON_FOLDERS_DEFAULT, showUpdateScheduler, \
                 USE_GROWL, GROWL_HOST, GROWL_PASSWORD, PROG_DIR, NZBMATRIX, NZBMATRIX_USERNAME, \
                 NZBMATRIX_APIKEY, versionCheckScheduler, VERSION_NOTIFY, PROCESS_AUTOMATICALLY, \
-                KEEP_PROCESSED_DIR, TV_DOWNLOAD_DIR, TVDB_API_KEY, TVDB_BASE_URL, TVNZB
+                KEEP_PROCESSED_DIR, TV_DOWNLOAD_DIR, TVDB_API_KEY, TVDB_BASE_URL, TVNZB, \
+		TVDB_ART_TYPES, TVDB_ART_QUALITY
         
         if __INITIALIZED__:
             return False
@@ -276,6 +280,10 @@ def initialize():
         TVDB_API_KEY = check_setting_str(CFG, 'General', 'tvdb_api_key',
 		DEFAULT_TVDB_API_KEY)
 	TVDB_BASE_URL = 'http://www.thetvdb.com/api/' + TVDB_API_KEY
+        TVDB_ART_TYPES = check_setting_str(CFG, 'General', 'tvdb_art_types',
+		'')
+        TVDB_ART_QUALITY = check_setting_str(CFG, 'General', 'tvdb_art_quality',
+		DEFAULT_TVDB_ART_QUALITY)
 
         NZB_METHOD = check_setting_str(CFG, 'General', 'nzb_method', 'blackhole')
         if NZB_METHOD not in ('blackhole', 'sabnzbd'):
