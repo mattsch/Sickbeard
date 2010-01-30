@@ -177,8 +177,8 @@ def doIt(downloaderDir, nzbName=None):
 
         try:
             t = tvdb_api.Tvdb(custom_ui=classes.ShowListUI,
-		    lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
-		    apikey=sickbeard.TVDB_API_KEY)
+                              lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
+                              apikey=sickbeard.TVDB_API_KEY)
             showObj = t[result["file_seriesname"]]
             showInfo = (int(showObj["id"]), showObj["seriesname"])
         except (tvdb_exceptions.tvdb_exception, IOError) as e:

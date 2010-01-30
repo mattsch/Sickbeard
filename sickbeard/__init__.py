@@ -76,10 +76,7 @@ CREATE_METADATA = None
 QUALITY_DEFAULT = None
 SEASON_FOLDERS_DEFAULT = None
 
-TVDB_API_KEY = None
-# FIXME Set to tvdb_api's key, needs proper key from
-# http://thetvdb.com/?tab=apiregister
-DEFAULT_TVDB_API_KEY = '0629B785CE550C8D'
+TVDB_API_KEY = '9DAF49C96CBF8DAC'
 TVDB_BASE_URL = None
 TVDB_ART_TYPES = None
 TVDB_ART_QUALITY = None
@@ -238,7 +235,7 @@ def initialize():
                 DEFAULT_BACKLOG_SEARCH_FREQUENCY, QUALITY_DEFAULT, SEASON_FOLDERS_DEFAULT, showUpdateScheduler, \
                 USE_GROWL, GROWL_HOST, GROWL_PASSWORD, PROG_DIR, NZBMATRIX, NZBMATRIX_USERNAME, \
                 NZBMATRIX_APIKEY, versionCheckScheduler, VERSION_NOTIFY, PROCESS_AUTOMATICALLY, \
-                KEEP_PROCESSED_DIR, TV_DOWNLOAD_DIR, TVDB_API_KEY, TVDB_BASE_URL, TVNZB, \
+                KEEP_PROCESSED_DIR, TV_DOWNLOAD_DIR, TVNZB, TVDB_BASE_URL, \
 		TVDB_ART_TYPES, TVDB_ART_QUALITY
         
         if __INITIALIZED__:
@@ -277,8 +274,6 @@ def initialize():
         VERSION_NOTIFY = check_setting_int(CFG, 'General', 'version_notify', 1)
         SEASON_FOLDERS_DEFAULT = bool(check_setting_int(CFG, 'General', 'season_folders_default', 0))
 
-        TVDB_API_KEY = check_setting_str(CFG, 'General', 'tvdb_api_key',
-		DEFAULT_TVDB_API_KEY)
 	TVDB_BASE_URL = 'http://www.thetvdb.com/api/' + TVDB_API_KEY
         TVDB_ART_TYPES = check_setting_str(CFG, 'General', 'tvdb_art_types',
 		'')
@@ -531,7 +526,7 @@ def save_config():
         USE_TORRENT, TORRENT_DIR, USENET_RETENTION, SEARCH_FREQUENCY, BACKLOG_SEARCH_FREQUENCY, \
         QUALITY_DEFAULT, SEASON_FOLDERS_DEFAULT, USE_GROWL, GROWL_HOST, GROWL_PASSWORD, \
         NZBMATRIX, NZBMATRIX_USERNAME, NZBMATRIX_APIKEY, VERSION_NOTIFY, TV_DOWNLOAD_DIR, \
-        PROCESS_AUTOMATICALLY, KEEP_PROCESSED_DIR, TVDB_API_KEY, TVNZB
+        PROCESS_AUTOMATICALLY, KEEP_PROCESSED_DIR, TVNZB
         
     CFG['General']['log_dir'] = LOG_DIR
     CFG['General']['web_port'] = WEB_PORT
@@ -552,7 +547,6 @@ def save_config():
     CFG['General']['tv_download_dir'] = TV_DOWNLOAD_DIR
     CFG['General']['keep_processed_dir'] = int(KEEP_PROCESSED_DIR)
     CFG['General']['process_automatically'] = int(PROCESS_AUTOMATICALLY)
-    CFG['General']['tvdb_api_key'] = TVDB_API_KEY
     CFG['Blackhole']['nzb_dir'] = NZB_DIR
     CFG['Blackhole']['torrent_dir'] = TORRENT_DIR
     CFG['Newzbin']['newzbin'] = int(NEWZBIN)

@@ -539,11 +539,14 @@ class TVShow(object):
 				logger.log("Failed to rename your tvshow.nfo file - you need to delete it or fix it: " + str(e), logger.ERROR)
 			raise exceptions.NoNFOException("Invalid info in tvshow.nfo")
 
-		if showSoup.title == None or showSoup.tvdbid == None:
-			raise exceptions.NoNFOException("Invalid info in tvshow.nfo (missing name or id)")
+		if showSoup.title == None or (showSoup.tvdbid == None and showSoup.id == None):
+			raise exceptions.NoNFOException("Invalid info in tvshow.nfo (missing name or id): "+str(showSoup.title)+" "+str(showSoup.tvdbid)+" "+str(showSoup.id))
 		
 		self.name = showSoup.title.string
-		self.tvdbid = int(showSoup.tvdbid.string)
+		if showSoup.tvdbid != None:
+			self.tvdbid = int(showSoup.tvdbid.string)
+		elif showSoup.id != None:
+			self.tvdbid = int(showSoup.id.string)
 		if showSoup.studio != None:
 			self.network = showSoup.studio.string
 		if self.network == None:
@@ -1046,8 +1049,8 @@ class TVEpisode:
 
 		try:
 			t = tvdb_api.Tvdb(actors=True,
-				lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
-				apikey=sickbeard.TVDB_API_KEY)
+							  lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
+							  apikey=sickbeard.TVDB_API_KEY)
 			myShow = t[self.show.tvdbid]
 		except tvdb_exceptions.tvdb_shownotfound as e:
 			raise exceptions.ShowNotFoundException(str(e))

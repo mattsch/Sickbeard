@@ -39,25 +39,25 @@ from lib.tvdb_api import tvdb_api, tvdb_exceptions
 import xml.etree.cElementTree as etree
 
 def indentXML(elem, level=0):
-    '''
-    Does our pretty printing, makes Matt very happy
-    '''
-    i = "\n" + level*"  "
-    if len(elem):
-        if not elem.text or not elem.text.strip():
-            elem.text = i + "  "
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-        for elem in elem:
-            indentXML(elem, level+1)
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-    else:
-        # Strip out the newlines from text
-        if elem.text:
-            elem.text = elem.text.replace('\n', ' ')
-        if level and (not elem.tail or not elem.tail.strip()):
-            elem.tail = i
+	'''
+	Does our pretty printing, makes Matt very happy
+	'''
+	i = "\n" + level*"  "
+	if len(elem):
+		if not elem.text or not elem.text.strip():
+			elem.text = i + "  "
+		if not elem.tail or not elem.tail.strip():
+			elem.tail = i
+		for elem in elem:
+			indentXML(elem, level+1)
+		if not elem.tail or not elem.tail.strip():
+			elem.tail = i
+	else:
+		# Strip out the newlines from text
+		if elem.text:
+			elem.text = elem.text.replace('\n', ' ')
+		if level and (not elem.tail or not elem.tail.strip()):
+			elem.tail = i
 
 def replaceExtension (file, newExt):
 	sepFile = file.rpartition(".")
@@ -178,19 +178,23 @@ def makeShowNFO(showID, showDir):
 		myShow = t[int(showID)]
 	except tvdb_exceptions.tvdb_shownotfound:
  		logger.log("Unable to find show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
+
 		raise
 		return False
 	except tvdb_exceptions.tvdb_error:
  		logger.log("TVDB is down, can't use its data to add this show", logger.ERROR)
+
 		return False
 
 	# check for title and id
 	try:
 		if myShow["seriesname"] == None or myShow["seriesname"] == "" or myShow["id"] == None or myShow["id"] == "":
  			logger.log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
+
 			return False
 	except tvdb_exceptions.tvdb_attributenotfound:
  		logger.log("Incomplete info for show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
+
 		return False
 	
 	title = etree.SubElement( tvNode, "title" )
@@ -216,11 +220,7 @@ def makeShowNFO(showID, showDir):
 	if myShow["contentrating"] != None:
 		mpaa.text = myShow["contentrating"]
 
-	id = etree.SubElement( tvNode, "id" )
-	if myShow["imdb_id"] != None:
-		id.text = myShow["imdb_id"]
-		
-	tvdbid = etree.SubElement( tvNode, "tvdbid" )
+	tvdbid = etree.SubElement( tvNode, "id" )
 	if myShow["id"] != None:
 		tvdbid.text = myShow["id"]
 		
@@ -235,24 +235,27 @@ def makeShowNFO(showID, showDir):
 	studio = etree.SubElement( tvNode, "studio" )
 	if myShow["network"] != None:
 		studio.text = myShow["network"]
-
+	
 	for actor in myShow['_actors']:
+
 		cur_actor = etree.SubElement( tvNode, "actor" )
 
 		cur_actor_name = etree.SubElement( cur_actor, "name" )
 		cur_actor_name.text = actor['name']
-
 		cur_actor_role = etree.SubElement( cur_actor, "role" )
 		cur_actor_role_text = actor['role']
+
 		if cur_actor_role_text != None:
 			cur_actor_role.text = cur_actor_role_text
 
 		cur_actor_thumb = etree.SubElement( cur_actor, "thumb" )
 		cur_actor_thumb_text = actor['image']
+
 		if cur_actor_thumb_text != None:
 			cur_actor_thumb.text = cur_actor_thumb_text
-	
+
  	logger.log("Writing NFO to "+os.path.join(showDir, "tvshow.nfo"), logger.DEBUG)
+
 
 	# Make it purdy
 	indentXML( tvNode )
