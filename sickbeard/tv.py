@@ -359,7 +359,8 @@ class TVShow(object):
 	def getImages(self, fanart=None, poster=None):
 		
 		try:
-			t = tvdb_api.Tvdb(lastTimeout=sickbeard.LAST_TVDB_TIMEOUT, apikey=sickbeard.TVDB_API_KEY)
+			t = tvdb_api.Tvdb(lastTimeout=sickbeard.LAST_TVDB_TIMEOUT,
+				apikey=sickbeard.TVDB_API_KEY, banners=True)
 			myShow = t[self.tvdbid]
 		except (tvdb_exceptions.tvdb_error, IOError):
 			logger.log("Unable to look up show on TVDB, not downloading images", logger.ERROR)
@@ -400,6 +401,51 @@ class TVShow(object):
 			if not os.path.isfile(os.path.join(self.location, "folder.jpg")):
 				outFile = open(os.path.join(self.location, "folder.jpg"), 'wb')
 				outFile.write(posterData)
+				outFile.close() 
+
+		seasonData = None
+
+		#  How many seasons?
+		numOfSeasons = len(myShow)
+
+		# Give us just the normal poster-style season graphics
+		seasonsArtObj = myShow['_banners']['season']['season']
+
+		# This holds our resulting dictionary of season art
+		seasonsDict = {}
+
+		# Returns a nested dictionary of season art with the season
+		# number as primary key. It's really overkill but gives the option
+		# to present to user via ui to pick down the road.
+		for seasonNum in range(numOfSeasons):
+		    # dumb, but we do have issues with types here so make it
+		    # strings for now
+		    seasonNum = str(seasonNum)
+		    seasonsDict[seasonNum] = {}
+		    for seasonArtID in seasonsArtObj.keys():
+			seasonArtID = str(seasonArtID)
+			if seasonsArtObj[seasonArtID]['season'] == seasonNum and seasonsArtObj[seasonArtID]['language'] == 'en':
+			    seasonsDict[seasonNum][seasonArtID] = seasonsArtObj[seasonArtID]['_bannerpath']
+		    if len(seasonsDict) > 0:
+			# Just grab whatever's there for now
+			season, seasonURL = seasonsDict[seasonNum].popitem()
+
+			seasonFileName = 'season' + seasonNum.zfill(2) + '.jpg'
+
+			# Let's do the check before we pull the file
+			if not os.path.isfile(os.path.join(self.location,
+				seasonFileName)):
+			    seasonData = helpers.getShowImage(seasonURL, season)
+
+			    if seasonData == None:
+				seasonData = helpers.getShowImage(seasonURL)
+
+			    if seasonData == None:
+				logger.log("Unable to retrieve season poster, skipping", logger.ERROR)
+			    else:
+				outFile = open(os.path.join(self.location,
+				    seasonFileName), 'wb')
+				outFile.write(seasonData)
 				outFile.close() 
 
 		
