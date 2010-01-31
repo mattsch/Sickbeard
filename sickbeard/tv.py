@@ -371,37 +371,37 @@ class TVShow(object):
 
 		# get the image data
 		fanartData = None
-		if fanart != None:
-			fanartData = helpers.getShowImage(fanartURL, fanart)
-		
-		# if we had a custom image number that failed OR we had no custom number then get the default one
-		if fanartData == None:
-			fanartData = helpers.getShowImage(fanartURL)
+		if not os.path.isfile(os.path.join(self.location, "fanart.jpg")):
+		    if fanart != None:
+			    fanartData = helpers.getShowImage(fanartURL, fanart)
+		    
+		    # if we had a custom image number that failed OR we had no custom number then get the default one
+		    if fanartData == None:
+			    fanartData = helpers.getShowImage(fanartURL)
 
-		if fanartData == None:
-			logger.log("Unable to retrieve fanart, skipping", logger.ERROR)
-		else:
-			if not os.path.isfile(os.path.join(self.location, "fanart.jpg")):
-				outFile = open(os.path.join(self.location, "fanart.jpg"), 'wb')
-				outFile.write(fanartData)
-				outFile.close()
+		    if fanartData == None:
+			    logger.log("Unable to retrieve fanart, skipping", logger.ERROR)
+		    else:
+			    outFile = open(os.path.join(self.location, "fanart.jpg"), 'wb')
+			    outFile.write(fanartData)
+			    outFile.close()
 		
 		# get the image data
 		posterData = None
-		if poster != None:
-			posterData = helpers.getShowImage(posterURL, poster)
-		
-		# if we had a custom image number that failed OR we had no custom number then get the default one
-		if posterData == None:
-			posterData = helpers.getShowImage(posterURL)
+		if not os.path.isfile(os.path.join(self.location, "folder.jpg")):
+		    if poster != None:
+			    posterData = helpers.getShowImage(posterURL, poster)
+		    
+		    # if we had a custom image number that failed OR we had no custom number then get the default one
+		    if posterData == None:
+			    posterData = helpers.getShowImage(posterURL)
 
-		if posterData == None:
-			logger.log("Unable to retrieve poster, skipping", logger.ERROR)
-		else:
-			if not os.path.isfile(os.path.join(self.location, "folder.jpg")):
-				outFile = open(os.path.join(self.location, "folder.jpg"), 'wb')
-				outFile.write(posterData)
-				outFile.close() 
+		    if posterData == None:
+			    logger.log("Unable to retrieve poster, skipping", logger.ERROR)
+		    else:
+			    outFile = open(os.path.join(self.location, "folder.jpg"), 'wb')
+			    outFile.write(posterData)
+			    outFile.close() 
 
 		seasonData = None
 
