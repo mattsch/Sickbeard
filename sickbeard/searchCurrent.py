@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
-
+from __future__ import with_statement
 
 from sickbeard import common, db, exceptions, helpers, search
 from sickbeard import logger
@@ -94,7 +94,7 @@ class CurrentSearcher():
                 return None
             
             if show == None:
-                logger.log("Unable to find the show with ID "+str(sqlEp["showid"])+" in your show list! DB value was "+sqlEp, logger.ERROR)
+                logger.log("Unable to find the show with ID "+str(sqlEp["showid"])+" in your show list! DB value was "+str(sqlEp), logger.ERROR)
                 return None
             
             ep = show.getEpisode(sqlEp["season"], sqlEp["episode"])
