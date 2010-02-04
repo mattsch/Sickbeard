@@ -31,7 +31,6 @@ import sickbeard
 
 import xml.etree.cElementTree as etree
 
-from lib.BeautifulSoup import BeautifulStoneSoup, NavigableString, SGMLParseError
 from lib.tvdb_api import tvdb_api, tvnamer, tvdb_exceptions
 from lib.tvnamer.utils import FileParser
 from lib.tvnamer import tvnamer_exceptions
@@ -1075,39 +1074,42 @@ class TVEpisode:
 			#nfoFile = os.path.join(self.show.location, nfoFilename)
 			
 			if os.path.isfile(nfoFile):
-				nfoFileObj = open(nfoFile, "r")
 				try:
-					nfoData = " ".join(nfoFileObj.readlines()).replace("&#x0D;","").replace("&#x0A;","")
-					showSoup = BeautifulStoneSoup(nfoData, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
-				except (SGMLParseError, ValueError), e:
+					showXML = etree.ElementTree(file =
+						nfoFile)
+				except (SGMLParseError, SyntaxError), e:
 					logger.log("Error loading the NFO, backing up the NFO and skipping for now: " + str(e), logger.ERROR) #TODO: figure out what's wrong and fix it
-					nfoFileObj.close()
 					try:
 						os.rename(nfoFile, nfoFile + ".old")
 					except Exception, e:
 						logger.log("Failed to rename your episode's NFO file - you need to delete it or fix it: " + str(e), logger.ERROR)
 					raise exceptions.NoNFOException("Error in NFO format")
 
-				for epDetails in showSoup.findAll('episodedetails'):
-					if isinstance(epDetails, NavigableString):
+				for epDetails in showXML.getiterator('episodedetails'):
+					if epDetails.findtext('season') == \
+					None or \
+					int(epDetails.findtext('season')) \
+					!= self.season or \
+					epDetails.findtext('episode') == \
+					None or \
+					int(epDetails.findtext('episode')) \
+					!= self.episode:
+						logger.log(str(self.show.tvdbid) + ": NFO has an <episodedetails> block for a different episode - wanted " + str(self.season) + "x" + str(self.episode) + " but got " + str(epDetails.findtext('season')) + "x" + str(epDetails.findtext('episode')), logger.DEBUG)
 						continue
 				
-					if epDetails.season.string == None or int(epDetails.season.string) != self.season or epDetails.episode.string == None or int(epDetails.episode.string) != self.episode:
-						logger.log(str(self.show.tvdbid) + ": NFO has an <episodedetails> block for a different episode - wanted " + str(self.season) + "x" + str(self.episode) + " but got " + str(epDetails.season.string) + "x" + str(epDetails.episode.string), logger.DEBUG)
-						continue
-				
-					if epDetails.title.string == None or epDetails.aired.string == None:
+					if epDetails.findtext('title') == None \
+					or epDetails.findtext('aired') == None:
 						raise exceptions.NoNFOException("Error in NFO format (missing episode title or airdate)")
 				
-					if epDetails.title.string != None:
+					if epDetails.findtext('title') != None:
 						#NAMEIT logger.log("CCCCCCC from " + str(self.season)+"x"+str(self.episode) + " -" + str(self.name) + " to " + str(showSoup.title.string))
-						self.name = epDetails.title.string
-					self.episode = int(epDetails.episode.string)
-					self.season = int(epDetails.season.string)
-					self.description = epDetails.plot.string
+						self.name = epDetails.findtext('title')
+					self.episode = int(epDetails.findtext('episode'))
+					self.season = int(epDetails.findtext('season'))
+					self.description = epDetails.findtext('plot')
 					if self.description == None:
 						self.description = ""
-					rawAirdate = [int(x) for x in epDetails.aired.string.split("-")]
+					rawAirdate = [int(x) for x in epDetails.findtext('aired').split("-")]
 					self.airdate = datetime.date(rawAirdate[0], rawAirdate[1], rawAirdate[2])
 					self.hasnfo = True
 			else:
