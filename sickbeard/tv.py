@@ -614,24 +614,28 @@ class TVShow(object):
 		logger.log(str(self.tvdbid) + ": Loading show info from NFO")
 
 		xmlFile = os.path.join(self._location, "tvshow.nfo")
-		xmlFileObj = open(xmlFile, "r")
 		
 		try:
-			nfoData = " ".join(xmlFileObj.readlines()).replace("&#x0D;","").replace("&#x0A;","")
-			showSoup = BeautifulStoneSoup(nfoData, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
+			showXML = etree.ElementTree(file = xmlFile)
 
-			if showSoup.title == None or (showSoup.tvdbid == None and showSoup.id == None):
-				raise exceptions.NoNFOException("Invalid info in tvshow.nfo (missing name or id): "+str(showSoup.title)+" "+str(showSoup.tvdbid)+" "+str(showSoup.id))
+			if showXML.findtext('title') == None or \
+			    (showXML.findtext('tvdbid') == None and \
+			    showXML.findtext('id') == None):
+				raise exceptions.NoNFOException("Invalid \
+				    info in tvshow.nfo (missing name or id):" \
+				    + str(showXML.findtext('title')) + " " \
+				    + str(showXML.findtext('tvdbid')) + " " \
+				    + str(showXML.findtext('id')))
 			
-			self.name = showSoup.title.string
-			if showSoup.tvdbid != None and showSoup.tvdbid.string != None:
-				self.tvdbid = int(showSoup.tvdbid.string)
-			elif showSoup.id != None and showSoup.id.string != None:
-				self.tvdbid = int(showSoup.id.string)
+			self.name = showXML.findtext('title')
+			if showXML.findtext('tvdbid') != None:
+				self.tvdbid = int(showXML.findtext('tvdbid'))
+			elif showXML.findtext('id'):
+				self.tvdbid = int(showXML.findtext('id'))
 			else:
 				raise exceptions.NoNFOException("Empty <id> or <tvdbid> field in NFO")
 
-		except (exceptions.NoNFOException, SGMLParseError), e:
+		except (exceptions.NoNFOException, SyntaxError), e:
 			logger.log("There was an error parsing your existing tvshow.nfo file: " + str(e), logger.ERROR)
 			logger.log("Attempting to rename it to tvshow.nfo.old", logger.DEBUG)
 			xmlFileObj.close()
@@ -641,12 +645,12 @@ class TVShow(object):
 				logger.log("Failed to rename your tvshow.nfo file - you need to delete it or fix it: " + str(e), logger.ERROR)
 			raise exceptions.NoNFOException("Invalid info in tvshow.nfo")
 
-		if showSoup.studio != None and showSoup.studio.string != None:
-			self.network = showSoup.studio.string
-		if self.network == None and showSoup.network.string != None:
+		if showXML.findtext('studio') != None:
+			self.network = showXML.findtext('studio')
+		if self.network == None and showXML.findtext('network') != None:
 			self.network = ""
-		if showSoup.genre != None and showSoup.genre.string != None:
-			self.genre = showSoup.genre.string
+		if showXML.findtext('genre') != None:
+			self.genre = showXML.findtext('genre')
 		else:
 			self.genre = ""
 
