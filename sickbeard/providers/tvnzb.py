@@ -165,7 +165,7 @@ class TVNZBCache(tvcache.TVCache):
 			for curSceneName in sceneNames:
 	
 				# if it matches
-				if name.startswith(curSceneName):
+				if name.lower().startswith(curSceneName.lower()):
 					logger.log("Successful match! Result "+name+" matched to show "+curShow.name, logger.DEBUG)
 					
 					# set the tvdbid in the db to the show's tvdbid
@@ -181,9 +181,9 @@ class TVNZBCache(tvcache.TVCache):
 		# get the current timestamp
 		curTimestamp = int(time.mktime(datetime.datetime.today().timetuple()))
 		
-		if "720p" or "1080p" or "x264" in name:
+		if any(x in name.lower() for x in ("720p", "1080p", "x264")):
 			quality = HD
-		elif "xvid" or "divx" in name:
+		elif any(x in name.lower() for x in ("xvid", "divx")):
 			quality = SD
 		else:
 			logger.log("Unable to figure out the quality of "+name+", assuming SD", logger.DEBUG)
