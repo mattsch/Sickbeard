@@ -1077,7 +1077,7 @@ class TVEpisode:
 				try:
 					showXML = etree.ElementTree(file =
 						nfoFile)
-				except (SGMLParseError, SyntaxError), e:
+				except (SyntaxError, ValueError), e:
 					logger.log("Error loading the NFO, backing up the NFO and skipping for now: " + str(e), logger.ERROR) #TODO: figure out what's wrong and fix it
 					try:
 						os.rename(nfoFile, nfoFile + ".old")
