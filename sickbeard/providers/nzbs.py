@@ -23,7 +23,7 @@ import urllib2
 import os.path
 import sys
 
-from lib.BeautifulSoup import BeautifulStoneSoup
+import xml.etree.cElementTree as etree
 
 import sickbeard
 import sickbeard.classes
@@ -116,8 +116,8 @@ def findEpisode (episode, forceQuality=None):
 		results = []
 		
 		try:
-			responseSoup = BeautifulStoneSoup(data, convertEntities=BeautifulStoneSoup.XML_ENTITIES)
-			items = responseSoup.findAll('item')
+			responseSoup = etree.ElementTree(etree.XML(data))
+			items = responseSoup.getiterator('item')
 		except Exception, e:
 			logger.log("Error trying to load NZBs.org RSS feed: "+str(e), logger.ERROR)
 			return []
@@ -128,12 +128,13 @@ def findEpisode (episode, forceQuality=None):
 
 	for item in items:
 		
-		if item.title == None or item.link == None:
+		if item.findtext('title') == None or \
+		item.findtext('link') == None:
 			logger.log("The XML returned from the NZBs.org RSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
 			continue
 		
-		title = item.title.string
-		url = item.link.string
+		title = item.findtext('title')
+		url = item.findtext('link')
 		
 		if "&i=" not in url and "&h=" not in url:
 			raise exceptions.AuthException("The NZBs.org result URL has no auth info which means your UID/hash are incorrect, check your config")
