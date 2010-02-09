@@ -38,6 +38,12 @@ from lib.tvdb_api import tvdb_api, tvdb_exceptions
 
 import xml.etree.cElementTree as etree
 
+import string
+
+# this is for the drive letter code, it only works on windows
+if os.name == 'nt':
+	from ctypes import windll
+
 def indentXML(elem, level=0):
 	'''
 	Does our pretty printing, makes Matt very happy
@@ -76,6 +82,10 @@ def isMediaFile (file):
 def sanitizeSceneName (name):
 	for x in ":()'!":
 		name = name.replace(x, "")
+
+	name = name.replace("- ", ".").replace(" ", ".").replace("&", "and")
+	name = re.sub("\.\.*", ".", name)	
+	
 	return name
 		
 def sanitizeFileName (name):
@@ -87,20 +97,16 @@ def sanitizeFileName (name):
 		
 def makeSceneShowSearchStrings(show):
 
-	showName = show.name.replace(" ", ".").replace("&", "and").replace(". ", " ")
-
-	if not showName.endswith(")") and show.startyear > 1900:
-		showName += ".(" + str(show.startyear) + ")"
-
-	results = []
-
-	results.append(sanitizeSceneName(showName))
-
-	if showName.find("(") != -1:
-		showNameNoBrackets = showName.rpartition(".(")[0]
-		results.append(sanitizeSceneName(showNameNoBrackets))
+	showNames = [show.name]
 	
-	return results
+	# if we have a tvrage name then use it
+	if show.tvrname != "" and show.tvrname != None and show.name.lower() != show.tvrname.lower():
+		logger.log("Adding TVRage show name to the list: '"+show.tvrname+"'", logger.DEBUG)
+		showNames.append(show.tvrname)
+
+	showNames = map(sanitizeSceneName, showNames)
+
+	return showNames
 
 
 def makeSceneSearchString (episode):
@@ -328,3 +334,17 @@ def getShowImage(url, imgNum=None):
 		return None
 
 	return imgData
+
+# adapted from http://stackoverflow.com/questions/827371/is-there-a-way-to-list-all-the-available-drive-letters-in-python/827490
+def getWinDrives():
+	if os.name != 'nt':
+		return []
+
+	drives = []
+	bitmask = windll.kernel32.GetLogicalDrives()
+	for letter in string.uppercase:
+		if bitmask & 1:
+			drives.append(letter)
+		bitmask >>= 1
+
+	return drives

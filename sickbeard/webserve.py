@@ -25,6 +25,12 @@ import cgi
 import sqlite3
 import time
 
+# use the built-in if it's available (python 2.6), if not use the included library
+try:
+    import json
+except ImportError:
+    from lib import simplejson as json
+
 from Cheetah.Template import Template
 import cherrypy
 
@@ -927,7 +933,44 @@ class Home:
             
             raise cherrypy.HTTPRedirect("displayShow?show=" + str(epObj.show.tvdbid))
 
+class WebFileBrowser:
 
+    @cherrypy.expose
+    def index(self, path='/'):
+        
+        logger.log("Incoming path: "+path, logger.DEBUG)
+        
+        entries = []
+        
+        if path == "**ROOT**":
+            driveLetters = helpers.getWinDrives()
+            for x in driveLetters:
+                letterPath = x+':\\'
+                entries.append({'name': letterPath, 'path': letterPath})
+            return json.dumps(entries)
+        
+        # fix up the path and find the parent
+        path = os.path.abspath(os.path.normpath(path))
+        parentPath = os.path.dirname(path)
+
+        logger.log("Normalized path: "+path, logger.DEBUG)
+        
+        # if we're at the root then the next step is the meta-node showing our drive letters
+        if path == parentPath and os.name == 'nt':
+            parentPath = "**ROOT**"
+        
+        if parentPath != path: 
+            entries.append({ 'name': "..", 'path': parentPath })
+
+        fileList = glob.glob(os.path.join(path, "*"))
+        fileList = sorted(fileList, lambda x, y: cmp(os.path.basename(x).lower(), os.path.basename(y).lower()))
+        
+        for filename in fileList:
+            absPath = os.path.abspath(filename)
+            if os.path.isdir(absPath):
+                entries.append({ 'name': os.path.basename(filename), 'path': absPath })
+
+        return json.dumps(entries)
 
 class WebInterface:
     
@@ -947,14 +990,10 @@ class WebInterface:
         if showObj == None:
             return "Unable to find show" #TODO: make it return a standard image
     
-        posterFilename = os.path.join(showObj.location, "folder.jpg")
+        posterFilename = os.path.abspath(os.path.join(showObj.location, "folder.jpg"))
         if os.path.isfile(posterFilename):
             
-            posterFile = open(posterFilename, "rb")
-            cherrypy.response.headers['Content-type'] = "image/jpeg"
-            posterImage = posterFile.read()
-            posterFile.close()
-            return posterImage
+            return cherrypy.lib.static.serve_file(posterFilename, content_type="image/jpeg")
         
         else:
             print "No poster" #TODO: make it return a standard image
@@ -980,3 +1019,5 @@ class WebInterface:
     config = Config()
 
     home = Home()
+
+    browser = WebFileBrowser()

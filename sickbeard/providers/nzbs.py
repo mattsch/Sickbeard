@@ -100,6 +100,10 @@ def findEpisode (episode, forceQuality=None):
 		
 	sceneSearchStrings = sickbeard.helpers.makeSceneSearchString(episode)
 	
+	itemList = []
+	results = []
+		
+
 	for curString in sceneSearchStrings:
 		params = {"action": "search", "q": "^"+curString.encode('utf-8'), "dl": 1, "i": sickbeard.NZBS_UID, "h": sickbeard.NZBS_HASH, "age": sickbeard.USENET_RETENTION}
 		params.update(quality)
@@ -113,8 +117,6 @@ def findEpisode (episode, forceQuality=None):
 		if data == None:
 			return []
 
-		results = []
-		
 		try:
 			responseSoup = etree.ElementTree(etree.XML(data))
 			items = responseSoup.getiterator('item')
@@ -122,14 +124,15 @@ def findEpisode (episode, forceQuality=None):
 			logger.log("Error trying to load NZBs.org RSS feed: "+str(e), logger.ERROR)
 			return []
 			
+		for curItem in items:
+			itemList.append(curItem)
 		
-		if len(items) > 0:
+		if len(itemList) > 0:
 			break
 
-	for item in items:
+	for item in itemList:
 		
-		if item.findtext('title') == None or \
-		item.findtext('link') == None:
+		if item.findtext('title') == None or item.findtext('link') == None:
 			logger.log("The XML returned from the NZBs.org RSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
 			continue
 		

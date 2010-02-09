@@ -220,17 +220,16 @@ class TVNZBCache(tvcache.TVCache):
 		self._clearCache()
 		
 		try:
-		    responseSoup = etree.ElementTree(element = etree.XML(data))
+			responseSoup = etree.ElementTree(element = etree.XML(data))
 		except (SyntaxError), e:
-		    logger.log("Invalid XML returned by TVNZB: " + str(sys.exc_info()) + " - " + str(e), logger.ERROR)
-		    raise
+			logger.log("Invalid XML returned by TVNZB: " + str(sys.exc_info()) + " - " + str(e), logger.ERROR)
+			return
 
 		items = responseSoup.getiterator('item')
 			
 		for item in items:
 
-			if item.findtext('title') == None or \
-			item.findtext('link') == None:
+			if item.findtext('title') == None or item.findtext('link') == None:
 				logger.log("The XML returned from the TVNZB RSS feed is incomplete, this result is unusable: "+str(item), logger.ERROR)
 				continue
 
@@ -243,4 +242,3 @@ class TVNZBCache(tvcache.TVCache):
 			episode = int(item.findtext('episode'))
 
 			self._addCacheEntry(title, season, episode, url)
-

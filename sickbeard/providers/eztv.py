@@ -98,8 +98,7 @@ def findEpisode(episode, forceQuality=None):
             logger.log("The XML returned from the EZTV RSS feed is incomplete, this result is unusable: "+data, logger.ERROR)
             continue
         
-        if epQuality == SD and ('720p' in item.findtext('title') or '720p' in \
-	item.findtext('link')):
+        if epQuality == SD and ('720p' in item.findtext('title') or '720p' in item.findtext('link')):
             continue
         
         title = item.findtext('title')

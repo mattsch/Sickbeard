@@ -247,19 +247,17 @@ class TVBinzCache(tvcache.TVCache):
 			
 		for item in items:
 
-			if item.findtext('title') != None and \
-			item.findtext('title') == "You must be logged in to view this feed":
+			if item.findtext('title') != None and item.findtext('title') == "You must be logged in to view this feed":
 				raise exceptions.AuthException("TVBinz authentication details are incorrect, check your config")
 
-			if item.findtext('title') == None or \
-			item.findtext('link') == None:
+			if item.findtext('title') == None or item.findtext('link') == None:
 				logger.log("The XML returned from the TVBinz RSS feed is incomplete, this result is unusable: "+str(item), logger.ERROR)
 				continue
 
 			title = item.findtext('title')
 			url = item.findtext('link').replace('&amp;', '&')
 
-			sInfo = item.find('seriesinfo')
+			sInfo = item.find('seriesInfo')
 			if sInfo == None:
 				logger.log("No series info, this is some kind of non-standard release, ignoring it", logger.DEBUG)
 				continue
@@ -272,13 +270,13 @@ class TVBinzCache(tvcache.TVCache):
 			else:
 				quality = SD
 			
-			season = int(sInfo.findtext('seasonnum'))
-			episode = int(sInfo.findText('episodenum'))
+			season = int(sInfo.findtext('seasonNum'))
+			episode = int(sInfo.findtext('episodeNum'))
 
-			if sInfo.findtext('tvrid') == None:
+			if sInfo.findtext('tvrID') == None:
 				tvrid = 0
 			else:
-				tvrid = int(sInfo.findtext('tvrid'))
+				tvrid = int(sInfo.findtext('tvrID'))
 			
 			self._addCacheEntry(title, season, episode, tvrid, url, quality)
 
