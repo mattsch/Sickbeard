@@ -92,4 +92,3 @@ actionStrings[ACTION_DOWNLOADED] = "Downloaded"
 # Get our xml namespaces correct for lxml
 XML_NSMAP = {'xsi': 'http://www.w3.org/2001/XMLSchema-instance', 
              'xsd': 'http://www.w3.org/2001/XMLSchema'}
-
