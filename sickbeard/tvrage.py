@@ -19,6 +19,7 @@
 
 
 import urllib
+import urllib2
 import sqlite3
 import datetime
 import traceback
@@ -32,10 +33,11 @@ from sickbeard import db
 from sickbeard import exceptions
 
 from lib.tvdb_api import tvdb_api, tvdb_exceptions
+from lib.tvdb_api.cache import CacheHandler
 
 class TVRage:
     
-    def __init__(self, show):
+    def __init__(self, show, cache=True):
         
         self.show = show
         
@@ -44,6 +46,27 @@ class TVRage:
         
         self._tvrid = 0
         self._tvrname = None
+
+	# Ripped wholesale from tvdb_api
+        if cache is True:
+            self.config['cache_enabled'] = True
+            self.config['cache_location'] = self._getTempDir()
+        elif isinstance(cache, basestring):
+            self.config['cache_enabled'] = True
+            self.config['cache_location'] = cache
+        else:
+            self.config['cache_enabled'] = False
+            self.config['cache_location'] = self._getTempDir()
+
+        if self.config['cache_enabled']:
+            self.urlopener = urllib2.build_opener(
+                CacheHandler(self.config['cache_location'])
+            )
+        else:
+            #self.urlopener = urllib2.build_opener()
+            self.urlopener = urllib2.build_opener(
+                CacheHandler(self.config['cache_location'], 1)
+            )
         
         if self.show.tvrid == 0:
             
@@ -66,6 +89,49 @@ class TVRage:
             self.show.tvrname = self._tvrname
             self.show.saveToDB()
 
+    def _getTempDir(self):
+        """Returns the [system temp dir]/tvrage
+        """
+        return os.path.join(tempfile.gettempdir(), "tvrage")
+
+    def _loadUrl(self, url, recache=False):
+        try:
+            self.log.debug("Retrieving URL %s" % url)
+            resp = self.urlopener.open(url)
+            if 'x-local-cache' in resp.headers:
+                self.log.debug("URL %s was cached in %s" % (
+                    url,
+                    resp.headers['x-local-cache'])
+                )
+                if recache:
+                    self.log.debug("Attempting to recache %s" % url)
+                    resp.recache()
+        except IOError, errormsg:
+	    raise exceptions.TVRageException("Could not fetch url: " + str(url))
+        #end try
+
+        return resp.read()
+
+    def _getetsrc(self, url):
+        """Loads a URL using caching, returns an ElementTree of the source
+        """
+        src = self._loadUrl(url)
+        try:
+            return ElementTree.fromstring(src)
+        except SyntaxError:
+            src = self._loadUrl(url, recache=True)
+            try:
+                return ElementTree.fromstring(src)
+            except SyntaxError, exceptionmsg:
+                errormsg = "There was an error with the XML retrieved from thetvdb.com:\n%s" % (
+                    exceptionmsg
+                )
+
+                if self.config['cache_enabled']:
+                    errormsg += "\nFirst try emptying the cache folder at..\n%s" % (
+                        self.config['cache_location']
+                    )
+		raise exceptions.TVRageException(errormessage)
 
     def confirmShow(self, force=False):
         
