@@ -72,12 +72,14 @@ WEB_USERNAME = None
 WEB_PASSWORD = None 
 LAUNCH_BROWSER = None
 CREATE_METADATA = None
+CACHE_DIR = None
 
 QUALITY_DEFAULT = None
 SEASON_FOLDERS_DEFAULT = None
 
 TVDB_API_KEY = '9DAF49C96CBF8DAC'
 TVDB_BASE_URL = None
+TVDB_API_PARMS = {}
 
 USE_NZB = False
 NZB_METHOD = None 
@@ -238,7 +240,7 @@ def initialize():
                 USE_GROWL, GROWL_HOST, GROWL_PASSWORD, PROG_DIR, NZBMATRIX, NZBMATRIX_USERNAME, \
                 NZBMATRIX_APIKEY, versionCheckScheduler, VERSION_NOTIFY, PROCESS_AUTOMATICALLY, \
                 KEEP_PROCESSED_DIR, TV_DOWNLOAD_DIR, TVNZB, TVDB_BASE_URL, MIN_SEARCH_FREQUENCY, \
-                MIN_BACKLOG_SEARCH_FREQUENCY
+                MIN_BACKLOG_SEARCH_FREQUENCY, CACHE_DIR, TVDB_API_PARMS
         
         if __INITIALIZED__:
             return False
@@ -272,6 +274,16 @@ def initialize():
         LAUNCH_BROWSER = bool(check_setting_int(CFG, 'General', 'launch_browser', 1))
         CREATE_METADATA = bool(check_setting_int(CFG, 'General', 'create_metadata', 1))
         
+        CACHE_DIR = check_setting_str(CFG, 'General', 'cache_dir', 'cache')
+        if not helpers.makeDir(CACHE_DIR):
+            logger.log("!!! No cache folder, disabling cache!", logger.ERROR)
+	    CACHE_DIR = None
+
+	# Set our common tvdb_api options here
+	TVDB_API_PARMS = {'cache': None, 'apikey': TVDB_API_KEY}
+	if CACHE_DIR:
+	    TVDB_API_PARMS['cache'] = CACHE_DIR + '/tvdb'
+
         QUALITY_DEFAULT = check_setting_int(CFG, 'General', 'quality_default', SD)
         VERSION_NOTIFY = check_setting_int(CFG, 'General', 'version_notify', 1)
         SEASON_FOLDERS_DEFAULT = bool(check_setting_int(CFG, 'General', 'season_folders_default', 0))
@@ -529,7 +541,7 @@ def save_config():
         USE_TORRENT, TORRENT_DIR, USENET_RETENTION, SEARCH_FREQUENCY, BACKLOG_SEARCH_FREQUENCY, \
         QUALITY_DEFAULT, SEASON_FOLDERS_DEFAULT, USE_GROWL, GROWL_HOST, GROWL_PASSWORD, \
         NZBMATRIX, NZBMATRIX_USERNAME, NZBMATRIX_APIKEY, VERSION_NOTIFY, TV_DOWNLOAD_DIR, \
-        PROCESS_AUTOMATICALLY, KEEP_PROCESSED_DIR, TVNZB
+        PROCESS_AUTOMATICALLY, KEEP_PROCESSED_DIR, TVNZB, CACHE_DIR
         
     CFG['General']['log_dir'] = LOG_DIR
     CFG['General']['web_port'] = WEB_PORT
@@ -547,6 +559,7 @@ def save_config():
     CFG['General']['use_torrent'] = int(USE_TORRENT)
     CFG['General']['launch_browser'] = int(LAUNCH_BROWSER)
     CFG['General']['create_metadata'] = int(CREATE_METADATA)
+    CFG['General']['cache_dir'] = CACHE_DIR
     CFG['General']['tv_download_dir'] = TV_DOWNLOAD_DIR
     CFG['General']['keep_processed_dir'] = int(KEEP_PROCESSED_DIR)
     CFG['General']['process_automatically'] = int(PROCESS_AUTOMATICALLY)
