@@ -30,7 +30,7 @@ import sickbeard
 
 from sickbeard.exceptions import *
 from sickbeard import logger
-from sickbeard.common import mediaExtensions, XML_NSMAP
+from sickbeard.common import mediaExtensions, XML_NSMAP, sceneExceptions
 
 from sickbeard import db
 
@@ -95,9 +95,17 @@ def sanitizeFileName (name):
 		name = name.replace(x, "")
 	return name
 		
+
+def sceneToNormalShowNames(name):
+	
+	return (name, name.replace(" and ", " & "))
+
 def makeSceneShowSearchStrings(show):
 
 	showNames = [show.name]
+
+	if int(show.tvdbid) in sceneExceptions:
+		showNames += sceneExceptions[int(show.tvdbid)]
 	
 	# if we have a tvrage name then use it
 	if show.tvrname != "" and show.tvrname != None and show.name.lower() != show.tvrname.lower():
@@ -126,7 +134,12 @@ def getGZippedURL (f):
 	compressedResponse = f.read()
 	compressedStream = StringIO.StringIO(compressedResponse)
 	gzipper = gzip.GzipFile(fileobj=compressedStream)
-	return gzipper.read()
+	try:
+		data = None
+		data = gzipper.read()
+	except IOError, e:
+		logger.log("Exception encountered trying to read gzip: "+str(e), logger.ERROR)
+	return data
 
 def findCertainShow (showList, tvdbid):
 	results = filter(lambda x: x.tvdbid == tvdbid, showList)
@@ -178,13 +191,11 @@ def makeShowNFO(showID, showDir):
 		myShow = t[int(showID)]
 	except tvdb_exceptions.tvdb_shownotfound:
  		logger.log("Unable to find show with id " + str(showID) + " on tvdb, skipping it", logger.ERROR)
-
 		raise
-		return False
+
 	except tvdb_exceptions.tvdb_error:
  		logger.log("TVDB is down, can't use its data to add this show", logger.ERROR)
-
-		return False
+ 		raise
 
 	# check for title and id
 	try:
@@ -270,16 +281,28 @@ def makeShowNFO(showID, showDir):
 
 def searchDBForShow(showName):
 	
+	showNames = [showName]
+	
 	# if tvdb fails then try looking it up in the db
 	myDB = db.DBConnection()
+
+	yearRegex = "(.*)([(]?)(\d{4})(?(2)[)]?).*"
 	sqlResults = myDB.select("SELECT * FROM tv_shows WHERE show_name LIKE ?", [showName+'%'])
 	
 	if len(sqlResults) != 1:
+
+		# if we didn't get exactly one result then try again with the year stripped off if possible
+		match = re.match(yearRegex, showName)
+		if match:
+			logger.log("Unable to match original name but trying to manually strip and specify show year", logger.DEBUG)
+			sqlResults = myDB.select("SELECT * FROM tv_shows WHERE show_name LIKE ? AND startyear = ?", [match.group(1)+'%', match.group(3)])
+
 		if len(sqlResults) == 0:
 			logger.log("Unable to match a record in the DB for "+showName, logger.DEBUG)
-		else:
+			return None
+		elif len(sqlResults) > 1:
 			logger.log("Multiple results for "+showName+" in the DB, unable to match show name", logger.DEBUG)
-		return None
+			return None
 	
 	return (int(sqlResults[0]["tvdb_id"]), sqlResults[0]["show_name"])
 

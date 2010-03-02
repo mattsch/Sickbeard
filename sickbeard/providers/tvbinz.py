@@ -46,7 +46,7 @@ def isActive():
 
 def getTVBinzURL (url):
 
-	searchHeaders = {"Cookie": "uid=" + sickbeard.TVBINZ_UID + ";hash=" + sickbeard.TVBINZ_HASH, 'Accept-encoding': 'gzip'}
+	searchHeaders = {"Cookie": "uid=" + sickbeard.TVBINZ_UID + ";hash=" + sickbeard.TVBINZ_HASH + ";auth=" + sickbeard.TVBINZ_AUTH, 'Accept-encoding': 'gzip'}
 	req = urllib2.Request(url=url, headers=searchHeaders)
 	
 	try:
@@ -86,10 +86,10 @@ def findEpisode (episode, forceQuality=None):
 		logger.log("TVbinz doesn't support disc backlog. Use Newzbin or download it manually from TVbinz")
 		return []
 
-	if sickbeard.TVBINZ_UID in (None, "") or sickbeard.TVBINZ_HASH in (None, ""):
+	if sickbeard.TVBINZ_UID in (None, "") or sickbeard.TVBINZ_HASH in (None, "") or sickbeard.TVBINZ_AUTH in (None, ""):
 		raise exceptions.AuthException("TVBinz authentication details are empty, check your config")
 	
-	logger.log("Searching tvbinz for " + episode.prettyName())
+	logger.log("Searching tvbinz for " + episode.prettyName(True))
 
 	if forceQuality != None:
 		epQuality = forceQuality
@@ -111,12 +111,12 @@ def findEpisode (episode, forceQuality=None):
 		
 		title = curResult["name"]
 		url = curResult["url"]
-		urlParams = {'i': sickbeard.TVBINZ_UID, 'h': sickbeard.TVBINZ_HASH}
+		urlParams = {'i': sickbeard.TVBINZ_SABUID, 'h': sickbeard.TVBINZ_HASH}
 	
 		logger.log("Found result " + title + " at " + url)
 
 		result = sickbeard.classes.NZBSearchResult(episode)
-		result.provider = sickbeard.common.TVBINZ
+		result.provider = 'tvbinz'
 		result.url = url + "&" + urllib.urlencode(urlParams) 
 		result.extraInfo = [title]
 		result.quality = epQuality
@@ -226,7 +226,7 @@ class TVBinzCache(tvcache.TVCache):
 		# get all records since the last timestamp
 		url = "https://tvbinz.net/rss.php?"
 		
-		urlArgs = {'normalize': 1, 'n': 100, 'maxage': 400, 'seriesinfo': 1}
+		urlArgs = {'normalize': 1, 'n': 100, 'maxage': 400, 'seriesinfo': 1, 'nodupes': 1, 'sets': 'none'}
 
 		url += urllib.urlencode(urlArgs)
 		

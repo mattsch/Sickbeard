@@ -29,6 +29,14 @@ from lib.irclib.irclib import ServerNotConnectedError
 
 import sickbeard
 
+naming_ep_type = ("%(seasonnumber)dx%(episodenumber)02d",
+                  "s%(seasonnumber)02de%(episodenumber)02d",
+                   "S%(seasonnumber)02dE%(episodenumber)02d")
+naming_multi_ep_type = {0: ["-%(episodenumber)02d"]*len(naming_ep_type),
+                        1: [" - " + x for x in naming_ep_type],
+                        2: [x + "%(episodenumber)02d" for x in ("x", "e", "E")]}
+
+
 def change_LOG_DIR(log_dir):
 
     if os.path.normpath(sickbeard.LOG_DIR) != os.path.normpath(log_dir):
@@ -50,6 +58,7 @@ def change_LOG_DIR(log_dir):
 def change_NZB_DIR(nzb_dir):
 
     if nzb_dir == '':
+        sickbeard.NZB_DIR = ''
         return True
 
     if os.path.normpath(sickbeard.NZB_DIR) != os.path.normpath(nzb_dir):
@@ -65,6 +74,7 @@ def change_NZB_DIR(nzb_dir):
 def change_TORRENT_DIR(torrent_dir):
 
     if torrent_dir == '':
+        sickbeard.TORRENT_DIR = ''
         return True
 
     if os.path.normpath(sickbeard.TORRENT_DIR) != os.path.normpath(torrent_dir):
@@ -80,6 +90,7 @@ def change_TORRENT_DIR(torrent_dir):
 def change_TV_DOWNLOAD_DIR(tv_download_dir):
 
     if tv_download_dir == '':
+        sickbeard.TV_DOWNLOAD_DIR = ''
         return True
 
     if os.path.normpath(sickbeard.TV_DOWNLOAD_DIR) != os.path.normpath(tv_download_dir):

@@ -84,7 +84,7 @@ def findEpisode (episode, forceQuality=None):
 		logger.log("TVNZB doesn't support disc backlog. Use Newzbin or download it manually from TVNZB")
 		return []
 
-	logger.log("Searching TVNZB for " + episode.prettyName())
+	logger.log("Searching TVNZB for " + episode.prettyName(True))
 
 	if forceQuality != None:
 		epQuality = forceQuality
@@ -110,7 +110,7 @@ def findEpisode (episode, forceQuality=None):
 		logger.log("Found result " + title + " at " + url)
 
 		result = sickbeard.classes.NZBSearchResult(episode)
-		result.provider = sickbeard.common.TVNZB
+		result.provider = 'tvnzb'
 		result.url = url 
 		result.extraInfo = [title]
 		result.quality = epQuality

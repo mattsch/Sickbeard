@@ -50,23 +50,6 @@ statusStrings[MISSED] = "Missed"
 statusStrings[BACKLOG] = "Backlog"
 statusStrings[DISCBACKLOG] = "Disc Backlog"
 
-# Provider stuff
-#TODO: refactor to providers package
-NEWZBIN = 1
-TVBINZ = 2
-NZBS = 3
-EZTV = 4
-NZBMATRIX = 5
-TVNZB = 6
-
-providerNames = {}
-providerNames[NEWZBIN] = "Newzbin"
-providerNames[TVBINZ] = "TVBinz"
-providerNames[NZBS] = "NZBs.org"
-providerNames[EZTV] = "EZTV"
-providerNames[NZBMATRIX] = "NZBMatrix"
-providerNames[TVNZB] = "TVNZB"
-
 ### Qualities
 HD = 1
 SD = 3
@@ -92,3 +75,20 @@ actionStrings[ACTION_DOWNLOADED] = "Downloaded"
 # Get our xml namespaces correct for lxml
 XML_NSMAP = {'xsi': 'http://www.w3.org/2001/XMLSchema-instance', 
              'xsd': 'http://www.w3.org/2001/XMLSchema'}
+
+
+
+#####################################################################
+###
+###  DO NOT EDIT THIS MANUALLY! If you find a show that isn't
+###  being found please submit a ticket on google code so that
+###  I can fix the problem for everybody:
+###  http://code.google.com/p/sickbeard/issues/entry
+###
+#####################################################################
+
+sceneExceptions = {72546: ('CSI'),
+                   110381: ('Archer'),
+                   81298: ('So You Think You Can Dance (AU)'),
+                   83897: ('Life After People: The Series')
+                   }

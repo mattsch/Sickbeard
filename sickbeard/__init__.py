@@ -27,8 +27,9 @@ import os
 
 from threading import Lock
 
-from sickbeard import searchCurrent, searchBacklog, updateShows
-from sickbeard import helpers, db, exceptions, showAdder, scheduler, versionChecker
+from sickbeard import searchCurrent, searchBacklog, showUpdater
+from sickbeard import helpers, db, exceptions, queue, scheduler, versionChecker
+#from sickbeard import showAdder, updateShows
 from sickbeard import logger
 
 from sickbeard.common import *
@@ -43,11 +44,10 @@ LAST_TVDB_TIMEOUT = None
 
 backlogSearchScheduler = None
 currentSearchScheduler = None
-updateScheduler = None
-botRunner = None
-showAddScheduler = None
 showUpdateScheduler = None
+botRunner = None
 versionCheckScheduler = None
+showQueueScheduler = None
 
 ircBot = None
 
@@ -68,6 +68,7 @@ LOG_DIR = None
 
 WEB_PORT = None
 WEB_LOG = None
+WEB_ROOT = None
 WEB_USERNAME = None
 WEB_PASSWORD = None 
 LAUNCH_BROWSER = None
@@ -76,6 +77,10 @@ CACHE_DIR = None
 
 QUALITY_DEFAULT = None
 SEASON_FOLDERS_DEFAULT = None
+
+NAMING_SHOW_NAME = None
+NAMING_EP_TYPE = None
+NAMING_MULTI_EP_TYPE = None
 
 TVDB_API_KEY = '9DAF49C96CBF8DAC'
 TVDB_BASE_URL = None
@@ -108,7 +113,9 @@ NEWZBIN_PASSWORD = None
 
 TVBINZ = False
 TVBINZ_UID = None
+TVBINZ_SABUID = None
 TVBINZ_HASH = None
+TVBINZ_AUTH = None
 
 NZBS = False
 NZBS_UID = None
@@ -227,20 +234,23 @@ def initialize():
     
     with INIT_LOCK:
         
-        global LOG_DIR, WEB_PORT, WEB_LOG, WEB_USERNAME, WEB_PASSWORD, NZB_METHOD, NZB_DIR, \
+        global LOG_DIR, WEB_PORT, WEB_LOG, WEB_ROOT, WEB_USERNAME, WEB_PASSWORD, NZB_METHOD, NZB_DIR, \
                 NEWZBIN, NEWZBIN_USERNAME, NEWZBIN_PASSWORD, TVBINZ, TVBINZ_UID, TVBINZ_HASH, \
                 SAB_USERNAME, SAB_PASSWORD, SAB_APIKEY, SAB_CATEGORY, SAB_HOST, IRC_BOT, IRC_SERVER, \
                 IRC_CHANNEL, IRC_KEY, IRC_NICK, XBMC_NOTIFY_ONSNATCH, XBMC_NOTIFY_ONDOWNLOAD, \
                 XBMC_UPDATE_LIBRARY, XBMC_HOST, XBMC_USERNAME, XBMC_PASSWORD, currentSearchScheduler, backlogSearchScheduler, \
-                updateScheduler, botRunner, __INITIALIZED__, LAUNCH_BROWSER, showList, missingList, \
-                airingList, comingList, loadingShowList, CREATE_METADATA, SOCKET_TIMEOUT, showAddScheduler, \
+                showUpdateScheduler, botRunner, __INITIALIZED__, LAUNCH_BROWSER, showList, missingList, \
+                airingList, comingList, loadingShowList, CREATE_METADATA, SOCKET_TIMEOUT, \
                 NZBS, NZBS_UID, NZBS_HASH, USE_NZB, USE_TORRENT, TORRENT_DIR, USENET_RETENTION, \
                 SEARCH_FREQUENCY, DEFAULT_SEARCH_FREQUENCY, BACKLOG_SEARCH_FREQUENCY, \
-                DEFAULT_BACKLOG_SEARCH_FREQUENCY, QUALITY_DEFAULT, SEASON_FOLDERS_DEFAULT, showUpdateScheduler, \
+                DEFAULT_BACKLOG_SEARCH_FREQUENCY, QUALITY_DEFAULT, SEASON_FOLDERS_DEFAULT, \
                 USE_GROWL, GROWL_HOST, GROWL_PASSWORD, PROG_DIR, NZBMATRIX, NZBMATRIX_USERNAME, \
                 NZBMATRIX_APIKEY, versionCheckScheduler, VERSION_NOTIFY, PROCESS_AUTOMATICALLY, \
                 KEEP_PROCESSED_DIR, TV_DOWNLOAD_DIR, TVNZB, TVDB_BASE_URL, MIN_SEARCH_FREQUENCY, \
-                MIN_BACKLOG_SEARCH_FREQUENCY, CACHE_DIR, TVDB_API_PARMS
+                MIN_BACKLOG_SEARCH_FREQUENCY, TVBINZ_AUTH, TVBINZ_SABUID, showQueueScheduler, \
+                NAMING_SHOW_NAME, NAMING_EP_TYPE, NAMING_MULTI_EP_TYPE, \
+		CACHE_DIR, TVDB_API_PARMS
+
         
         if __INITIALIZED__:
             return False
@@ -264,29 +274,36 @@ def initialize():
             WEB_PORT = check_setting_int(CFG, 'General', 'web_port', 8081)
         except:
             WEB_PORT = 8081
-        
+
         if WEB_PORT < 21 or WEB_PORT > 65535:
             WEB_PORT = 8081
-        
+
+        WEB_ROOT = check_setting_str(CFG, 'General', 'web_root', '').rstrip("/")
         WEB_LOG = bool(check_setting_int(CFG, 'General', 'web_log', 0))
         WEB_USERNAME = check_setting_str(CFG, 'General', 'web_username', '')
         WEB_PASSWORD = check_setting_str(CFG, 'General', 'web_password', '')
         LAUNCH_BROWSER = bool(check_setting_int(CFG, 'General', 'launch_browser', 1))
         CREATE_METADATA = bool(check_setting_int(CFG, 'General', 'create_metadata', 1))
-        
+
         CACHE_DIR = check_setting_str(CFG, 'General', 'cache_dir', 'cache')
         if not helpers.makeDir(CACHE_DIR):
-            logger.log("!!! No cache folder, disabling cache!", logger.ERROR)
+            logger.log("!!! Creating local cache dir failed, using system default", logger.ERROR)
 	    CACHE_DIR = None
 
 	# Set our common tvdb_api options here
 	TVDB_API_PARMS = {'cache': None, 'apikey': TVDB_API_KEY}
 	if CACHE_DIR:
 	    TVDB_API_PARMS['cache'] = CACHE_DIR + '/tvdb'
-
+	else:
+	    TVDB_API_PARMS['cache'] = True
+        
         QUALITY_DEFAULT = check_setting_int(CFG, 'General', 'quality_default', SD)
         VERSION_NOTIFY = check_setting_int(CFG, 'General', 'version_notify', 1)
         SEASON_FOLDERS_DEFAULT = bool(check_setting_int(CFG, 'General', 'season_folders_default', 0))
+
+        NAMING_SHOW_NAME = bool(check_setting_int(CFG, 'General', 'naming_show_name', 1))
+        NAMING_EP_TYPE = check_setting_int(CFG, 'General', 'naming_ep_string', 0)
+        NAMING_MULTI_EP_TYPE = check_setting_int(CFG, 'General', 'naming_multi_ep_type', 0)
 
         TVDB_BASE_URL = 'http://www.thetvdb.com/api/' + TVDB_API_KEY
 
@@ -319,7 +336,9 @@ def initialize():
         
         TVBINZ = bool(check_setting_int(CFG, 'TVBinz', 'tvbinz', 0))
         TVBINZ_UID = check_setting_str(CFG, 'TVBinz', 'tvbinz_uid', '')
+        TVBINZ_SABUID = check_setting_str(CFG, 'TVBinz', 'tvbinz_sabuid', '')
         TVBINZ_HASH = check_setting_str(CFG, 'TVBinz', 'tvbinz_hash', '')
+        TVBINZ_AUTH = check_setting_str(CFG, 'TVBinz', 'tvbinz_auth', '')
         
         NZBS = bool(check_setting_int(CFG, 'NZBs', 'nzbs', 0))
         NZBS_UID = check_setting_str(CFG, 'NZBs', 'nzbs_uid', '')
@@ -368,27 +387,22 @@ def initialize():
                                                                       runImmediately=False)
         backlogSearchScheduler.action.cycleTime = BACKLOG_SEARCH_FREQUENCY
         
-        updateScheduler = scheduler.Scheduler(updateShows.ShowUpdater(),
-                                              cycleTime=datetime.timedelta(hours=12),
-                                              threadName="UPDATE",
-                                              runImmediately=False)
-        
-        #botRunner = tvnzbbot.NZBBotRunner()
-
-        showAddScheduler = scheduler.Scheduler(showAdder.ShowAddQueue(),
-                                               cycleTime=datetime.timedelta(seconds=3),
-                                               threadName="SHOWADDQUEUE",
-                                               silent=True)
-        
-        showUpdateScheduler = scheduler.Scheduler(updateShows.ShowUpdateQueue(),
-                                               cycleTime=datetime.timedelta(seconds=3),
-                                               threadName="SHOWUPDATEQUEUE",
-                                               silent=True)
+        # the interval for this is stored inside the ShowUpdater class
+        showUpdaterInstance = showUpdater.ShowUpdater()
+        showUpdateScheduler = scheduler.Scheduler(showUpdaterInstance,
+                                               cycleTime=showUpdaterInstance.updateInterval,
+                                               threadName="SHOWUPDATER",
+                                               runImmediately=True)
 
         versionCheckScheduler = scheduler.Scheduler(versionChecker.CheckVersion(),
                                                      cycleTime=datetime.timedelta(hours=12),
                                                      threadName="CHECKVERSION",
                                                      runImmediately=True)
+        
+        showQueueScheduler = scheduler.Scheduler(queue.ShowQueue(),
+                                               cycleTime=datetime.timedelta(seconds=3),
+                                               threadName="SHOWQUEUE",
+                                               silent=True)
         
         
         showList = []
@@ -404,8 +418,7 @@ def initialize():
 def start():
     
     global __INITIALIZED__, currentSearchScheduler, backlogSearchScheduler, \
-            updateScheduler, IRC_BOT, botRunner, showAddScheduler, showUpdateScheduler, \
-            versionCheckScheduler
+            showUpdateScheduler, IRC_BOT, botRunner, versionCheckScheduler, showQueueScheduler
     
     with INIT_LOCK:
         
@@ -414,20 +427,17 @@ def start():
             # start the search scheduler
             currentSearchScheduler.thread.start()
         
-            # start the search scheduler
+            # start the backlog scheduler
             backlogSearchScheduler.thread.start()
         
-            # start the search scheduler
-            updateScheduler.thread.start()
-
-            # start the show adder
-            showAddScheduler.thread.start()
-
-            # start the show adder
+            # start the show updater
             showUpdateScheduler.thread.start()
 
             # start the version checker
             versionCheckScheduler.thread.start()
+
+            # start the queue checker
+            showQueueScheduler.thread.start()
 
             if IRC_BOT and False:
                 botRunner.thread.start()
@@ -435,8 +445,8 @@ def start():
 
 def halt ():
     
-    global __INITIALIZED__, currentSearchScheduler, backlogSearchScheduler, updateScheduler, \
-            botRunner, showAddScheduler, showUpdateScheduler
+    global __INITIALIZED__, currentSearchScheduler, backlogSearchScheduler, showUpdateScheduler, \
+            botRunner, showQueueScheduler
     
     with INIT_LOCK:
         
@@ -460,20 +470,6 @@ def halt ():
             except:
                 pass
 
-            updateScheduler.abort = True
-            logger.log("Waiting for the UPDATE thread to exit")
-            try:
-                updateScheduler.thread.join(10)
-            except:
-                pass
-            
-            showAddScheduler.abort = True
-            logger.log("Waiting for the SHOWADDER thread to exit")
-            try:
-                showAddScheduler.thread.join(10)
-            except:
-                pass
-            
             showUpdateScheduler.abort = True
             logger.log("Waiting for the SHOWUPDATER thread to exit")
             try:
@@ -483,6 +479,13 @@ def halt ():
             
             versionCheckScheduler.abort = True
             logger.log("Waiting for the VERSIONCHECKER thread to exit")
+            try:
+                versionCheckScheduler.thread.join(10)
+            except:
+                pass
+            
+            showQueueScheduler.abort = True
+            logger.log("Waiting for the SHOWQUEUE thread to exit")
             try:
                 versionCheckScheduler.thread.join(10)
             except:
@@ -541,11 +544,15 @@ def save_config():
         USE_TORRENT, TORRENT_DIR, USENET_RETENTION, SEARCH_FREQUENCY, BACKLOG_SEARCH_FREQUENCY, \
         QUALITY_DEFAULT, SEASON_FOLDERS_DEFAULT, USE_GROWL, GROWL_HOST, GROWL_PASSWORD, \
         NZBMATRIX, NZBMATRIX_USERNAME, NZBMATRIX_APIKEY, VERSION_NOTIFY, TV_DOWNLOAD_DIR, \
-        PROCESS_AUTOMATICALLY, KEEP_PROCESSED_DIR, TVNZB, CACHE_DIR
+        PROCESS_AUTOMATICALLY, KEEP_PROCESSED_DIR, TVNZB, TVBINZ_AUTH, TVBINZ_SABUID, \
+        NAMING_SHOW_NAME, NAMING_EP_TYPE, NAMING_MULTI_EP_TYPE, CACHE_DIR
+
+
         
     CFG['General']['log_dir'] = LOG_DIR
     CFG['General']['web_port'] = WEB_PORT
     CFG['General']['web_log'] = int(WEB_LOG)
+    CFG['General']['web_root'] = WEB_ROOT
     CFG['General']['web_username'] = WEB_USERNAME
     CFG['General']['web_password'] = WEB_PASSWORD
     CFG['General']['nzb_method'] = NZB_METHOD
@@ -556,6 +563,9 @@ def save_config():
     CFG['General']['quality_default'] = int(QUALITY_DEFAULT)
     CFG['General']['season_folders_default'] = int(SEASON_FOLDERS_DEFAULT)
     CFG['General']['version_notify'] = int(VERSION_NOTIFY)
+    CFG['General']['naming_show_name'] = int(NAMING_SHOW_NAME)
+    CFG['General']['naming_ep_type'] = int(NAMING_EP_TYPE)
+    CFG['General']['naming_multi_ep_type'] = int(NAMING_MULTI_EP_TYPE)
     CFG['General']['use_torrent'] = int(USE_TORRENT)
     CFG['General']['launch_browser'] = int(LAUNCH_BROWSER)
     CFG['General']['create_metadata'] = int(CREATE_METADATA)
@@ -570,7 +580,9 @@ def save_config():
     CFG['Newzbin']['newzbin_password'] = NEWZBIN_PASSWORD
     CFG['TVBinz']['tvbinz'] = int(TVBINZ)
     CFG['TVBinz']['tvbinz_uid'] = TVBINZ_UID
+    CFG['TVBinz']['tvbinz_sabuid'] = TVBINZ_SABUID
     CFG['TVBinz']['tvbinz_hash'] = TVBINZ_HASH
+    CFG['TVBinz']['tvbinz_auth'] = TVBINZ_AUTH
     CFG['NZBs']['nzbs'] = int(NZBS)
     CFG['NZBs']['nzbs_uid'] = NZBS_UID
     CFG['NZBs']['nzbs_hash'] = NZBS_HASH
@@ -611,7 +623,8 @@ def restart():
     if INIT_OK:
         start()
     
-def launchBrowser(browserURL):
+def launchBrowser():
+    browserURL = 'http://localhost:%d%s' % (WEB_PORT, WEB_ROOT)
     try:
         webbrowser.open(browserURL, 2, 1)
     except:

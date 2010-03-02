@@ -29,29 +29,23 @@ from sickbeard import history
 from sickbeard import notifiers 
 from sickbeard import exceptions
 
-from providers import newzbin
-from providers import tvbinz
-from providers import nzbs
-from providers import nzbmatrix
-from providers import eztv
-from providers import tvnzb
+from sickbeard.providers import *
+from sickbeard import providers
 
 def _downloadResult(result):
 
-	if result.provider == NEWZBIN:
-		return newzbin.downloadNZB(result)
-	elif result.provider == TVBINZ:
-		return tvbinz.downloadNZB(result)
-	elif result.provider == NZBS:
-		return nzbs.downloadNZB(result)
-	elif result.provider == EZTV:
-		return eztv.downloadTorrent(result)
-	elif result.provider == NZBMATRIX:
-		return nzbmatrix.downloadNZB(result)
-	elif result.provider == TVNZB:
-		return tvnzb.downloadNZB(result)
+	resProvider = providers.getProviderModule(result.provider)
+
+	if resProvider == None:
+		logger.log("Invalid provider name - this is a coding error, report it please", logger.ERROR)
+		return False
+
+	if resProvider.providerType == "nzb":
+		resProvider.downloadNZB(result)
+	elif resProvider.providerType == "torrent":
+		resProvider.downloadTorrent(result)
 	else:
-		logger.log("Invalid provider - this is a coding error, this should never happen.", logger.ERROR)
+		logger.log("Invalid provider type - this is a coding error, report it please", logger.ERROR)
 		return False
 
 def snatchEpisode(result):
@@ -76,7 +70,7 @@ def snatchEpisode(result):
 	# log the snatch
 	history.logSnatch(result)
 
-	notifiers.notify(NOTIFY_SNATCH, result.episode.prettyName())
+	notifiers.notify(NOTIFY_SNATCH, result.episode.prettyName(True))
 	
 	with result.episode.lock:
 		if result.predownloaded == False:
@@ -115,13 +109,13 @@ def _doSearch(episode, provider):
 
 def findEpisode(episode):
 
-	logger.log("Searching for " + episode.prettyName())
+	logger.log("Searching for " + episode.prettyName(True))
 
 	foundEps = []
 
 	didSearch = False
 
-	for curProvider in (newzbin, tvbinz, nzbs, nzbmatrix, eztv, tvnzb):
+	for curProvider in providers.getAllModules():
 		
 		if not curProvider.isActive():
 			continue

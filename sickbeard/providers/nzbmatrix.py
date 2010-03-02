@@ -55,7 +55,7 @@ def findEpisode (episode, forceQuality=None):
 		logger.log("NZBMatrix doesn't support disc backlog. Use newzbin or download it manually from NZBMatrix")
 		return []
 
-	logger.log("Searching NZBMatrix for " + episode.prettyName())
+	logger.log("Searching NZBMatrix for " + episode.prettyName(True))
 
 	if forceQuality != None:
 		epQuality = forceQuality
@@ -113,7 +113,7 @@ def findEpisode (episode, forceQuality=None):
 				continue
 
 			result = sickbeard.classes.NZBSearchResult(episode)
-			result.provider = NZBMATRIX 
+			result.provider = 'nzbmatrix' 
 			result.url = "http://nzbmatrix.com/api-nzb-download.php?id="+resultDict["NZBID"]+"&username="+sickbeard.NZBMATRIX_USERNAME+"&apikey="+sickbeard.NZBMATRIX_APIKEY
 			result.extraInfo = [resultDict["NZBNAME"]]
 			result.quality = epQuality

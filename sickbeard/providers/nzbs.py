@@ -34,7 +34,7 @@ from sickbeard.common import *
 from sickbeard import logger
 
 providerType = "nzb"
-providerName = "NZBs.org"
+providerName = "NZBs"
 
 def isActive():
 	return sickbeard.NZBS and sickbeard.USE_NZB
@@ -82,7 +82,7 @@ def findEpisode (episode, forceQuality=None):
 	if sickbeard.NZBS_UID in (None, "") or sickbeard.NZBS_HASH in (None, ""):
 		raise exceptions.AuthException("NZBs.org authentication details are empty, check your config")
 
-	logger.log("Searching NZBs.org for " + episode.prettyName())
+	logger.log("Searching NZBs.org for " + episode.prettyName(True))
 
 	if forceQuality != None:
 		epQuality = forceQuality
@@ -145,7 +145,7 @@ def findEpisode (episode, forceQuality=None):
 		logger.log("Found result " + title + " at " + url, logger.DEBUG)
 		
 		result = sickbeard.classes.NZBSearchResult(episode)
-		result.provider = sickbeard.common.NZBS
+		result.provider = 'nzbs'
 		result.url = url 
 		result.extraInfo = [title]
 		result.quality = epQuality

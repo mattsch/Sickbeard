@@ -41,6 +41,7 @@ from sickbeard import exceptions
 from sickbeard import processTV
 from sickbeard import classes
 from sickbeard import tvrage
+from sickbeard import config
 
 from common import *
 from sickbeard import logger
@@ -437,10 +438,8 @@ class TVShow(object):
 			
 				# Let's do the check before we pull the file 
 				if not os.path.isfile(os.path.join(self.location, seasonFileName+'.tbn')):
-					seasonData = helpers.getShowImage(seasonURL, season) 
-			
-					if seasonData == None: 
-						seasonData = helpers.getShowImage(seasonURL) 
+
+					seasonData = helpers.getShowImage(seasonURL) 
 			
 					if seasonData == None: 
 						logger.log("Unable to retrieve season poster, skipping", logger.ERROR) 
@@ -491,7 +490,7 @@ class TVShow(object):
 		season = epInfo.seasonnumber
 		rootEp = None
 
-		for curEp in epInfo.episodenumbers:
+		for curEp in epInfo.episodenumber:
 
 			episode = int(curEp)
 			
@@ -619,13 +618,11 @@ class TVShow(object):
 		xmlFile = os.path.join(self._location, "tvshow.nfo")
 		
 		try:
-			showXML = etree.ElementTree(file = xmlFile)
+			xmlFileObj = open(xmlFile, 'r')
+			showXML = etree.ElementTree(file = xmlFileObj)
 
-			if showXML.findtext('title') == None or \
-			    (showXML.findtext('tvdbid') == None and \
-			    showXML.findtext('id') == None):
-				raise exceptions.NoNFOException("Invalid \
-				    info in tvshow.nfo (missing name or id):" \
+			if showXML.findtext('title') == None or (showXML.findtext('tvdbid') == None and showXML.findtext('id') == None):
+				raise exceptions.NoNFOException("Invalid info in tvshow.nfo (missing name or id):" \
 				    + str(showXML.findtext('title')) + " " \
 				    + str(showXML.findtext('tvdbid')) + " " \
 				    + str(showXML.findtext('id')))
@@ -643,6 +640,7 @@ class TVShow(object):
 			logger.log("Attempting to rename it to tvshow.nfo.old", logger.DEBUG)
 
 			try:
+				xmlFileObj.close()
 				os.rename(xmlFile, xmlFile + ".old")
 			except Exception, e:
 				logger.log("Failed to rename your tvshow.nfo file - you need to delete it or fix it: " + str(e), logger.ERROR)
@@ -735,6 +733,8 @@ class TVShow(object):
 					curEp.location = ''
 					if curEp.status == DOWNLOADED:
 						curEp.status = SKIPPED
+					curEp.hasnfo = False
+					curEp.hastbn = False
 					curEp.saveToDB()
 
 		
@@ -819,23 +819,24 @@ class TVShow(object):
 		logger.log(str(self.tvdbid) + ": Saving show info to database", logger.DEBUG)
 
 		myDB = db.DBConnection()
-		sqlResults = myDB.select("SELECT * FROM tv_shows WHERE tvdb_id = " + str(self.tvdbid))
 
-		# use this list regardless of whether it's in there or not
-		sqlValues = [self.name, self.tvdbid, self.tvrid, self._location, self.network, self.genre, self.runtime, self.quality, self.airs, self.status, self.seasonfolders, self.paused, self.startyear, self.tvrname]
-		
-		# if it's not in there then insert it
-		if len(sqlResults) == 0:
-			sql = "INSERT INTO tv_shows (show_name, tvdb_id, tvr_id, location, network, genre, runtime, quality,  airs, status, seasonfolders, paused, startyear, tvr_name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+		controlValueDict = {"tvdb_id": self.tvdbid}
+		newValueDict = {"show_name": self.name,
+					    "tvr_id": self.tvrid,
+					    "location": self._location,
+					    "network": self.network,
+					    "genre": self.genre,
+					    "runtime": self.runtime,
+					    "quality": self.quality,
+					    "airs": self.airs,
+					    "status": self.status,
+					    "seasonfolders": self.seasonfolders,
+					    "paused": self.paused,
+					    "startyear": self.startyear,
+					    "tvr_name": self.tvrname
+					    }
 
-		# if it's already there then just change it
-		elif len(sqlResults) == 1:
-			sql = "UPDATE tv_shows SET show_name=?, tvdb_id=?, tvr_id=?, location=?, network=?, genre=?, runtime=?, quality=?, airs=?, status=?, seasonfolders=?, paused=?, startyear=?, tvr_name=? WHERE tvdb_id=?"
-			sqlValues += [self.tvdbid]
-		else:
-			raise exceptions.MultipleDBShowsException("Multiple records for a single show")
-		
-		myDB.action(sql, sqlValues)
+		myDB.upsert("tv_shows", newValueDict, controlValueDict)
 		
 		
 	def __str__(self):
@@ -873,7 +874,6 @@ class TVEpisode:
 		self.hasnfo = False
 		self.hastbn = False
 		self.status = UNKNOWN
-		logger.log("status starts unknown", logger.DEBUG)
 
 		self.tvdbid = 0
 
@@ -890,6 +890,9 @@ class TVEpisode:
 
 	def checkForMetaFiles(self): 
 		
+		oldhasnfo = self.hasnfo
+		oldhastbn = self.hastbn
+		
 		# check for nfo and tbn
 		if os.path.isfile(self.location):
 			if os.path.isfile(os.path.join(self.show.location, helpers.replaceExtension(self.location, 'nfo'))):
@@ -902,7 +905,8 @@ class TVEpisode:
 			else:
 				self.hastbn = False
 
-
+		# if either setting has changed return true, if not return false
+		return oldhasnfo != self.hasnfo or oldhastbn != self.hastbn 
 		
 	def specifyEpisode(self, season, episode):
 		
@@ -952,7 +956,7 @@ class TVEpisode:
 			if self.description == None:
 				self.description = ""
 			self.airdate = datetime.date.fromordinal(int(sqlResults[0]["airdate"]))
-			logger.log("1 Status changes from " + str(self.status) + " to " + str(sqlResults[0]["status"]), logger.DEBUG)
+			#logger.log("1 Status changes from " + str(self.status) + " to " + str(sqlResults[0]["status"]), logger.DEBUG)
 			self.status = int(sqlResults[0]["status"])
 			
 			# don't overwrite my location
@@ -1004,14 +1008,17 @@ class TVEpisode:
 			myEp["firstaired"] = str(datetime.date.fromordinal(1))
 			
 		if myEp["episodename"] == None or myEp["episodename"] == "":
-			logger.log("The episode has no name on TVDB")
+			logger.log("This episode ("+self.show.name+" - "+str(season)+"x"+str(episode)+") has no name on TVDB")
 			# if I'm incomplete on TVDB but I once was complete then just delete myself from the DB for now
 			if self.tvdbid != -1:
 				self.deleteEpisode()
 			return False
 
 		if myEp["firstaired"] == None or myEp["firstaired"] == "":
-			logger.log("The episode has no air date on TVDB")
+			logger.log("This episode ("+self.show.name+" - "+str(season)+"x"+str(episode)+") has no air date on TVDB")
+			# if I'm incomplete on TVDB but I once was complete then just delete myself from the DB for now
+			if self.tvdbid != -1:
+				self.deleteEpisode()
 			return False
 		
 		#NAMEIT logger.log("BBBBBBBB from " + str(self.season)+"x"+str(self.episode) + " -" +self.name+" to "+myEp["episodename"])
@@ -1022,7 +1029,15 @@ class TVEpisode:
 		if self.description == None:
 			self.description = ""
 		rawAirdate = [int(x) for x in myEp["firstaired"].split("-")]
-		self.airdate = datetime.date(rawAirdate[0], rawAirdate[1], rawAirdate[2])
+		try:
+			self.airdate = datetime.date(rawAirdate[0], rawAirdate[1], rawAirdate[2])
+		except ValueError:
+			logger.log("Malformed air date retrieved from TVDB ("+self.show.name+" - "+str(season)+"x"+str(episode)+")", logger.ERROR)
+			# if I'm incomplete on TVDB but I once was complete then just delete myself from the DB for now
+			if self.tvdbid != -1:
+				self.deleteEpisode()
+			return False
+			
 		self.tvdbid = myEp["id"]
 
 		if not os.path.isdir(self.show._location):
@@ -1146,8 +1161,8 @@ class TVEpisode:
 		if sickbeard.CREATE_METADATA != True:
 			return
 		
-		self.checkForMetaFiles()
-		
+		shouldSave = self.checkForMetaFiles()
+
 		epsToWrite = [self] + self.relatedEps
 
 		try:
@@ -1301,6 +1316,7 @@ class TVEpisode:
 			
 			for epToWrite in epsToWrite:
 				epToWrite.hasnfo = True
+				shouldSave = True
 		# end if needsNFO
 
 		if not self.hastbn or force:
@@ -1317,9 +1333,11 @@ class TVEpisode:
 					return
 				#TODO: check that it worked
 				self.hastbn = True
+				shouldSave = True
 
 		# save our new NFO statuses to the DB
-		self.saveToDB()
+		if shouldSave:
+			self.saveToDB()
 
 
 	def deleteEpisode(self):
@@ -1357,23 +1375,20 @@ class TVEpisode:
 		logger.log("STATUS IS " + str(self.status), logger.DEBUG)
 	
 		myDB = db.DBConnection()
-		sqlResults = myDB.select("SELECT * FROM tv_episodes WHERE showid = " + str(self.show.tvdbid) + " AND episode = " + str(self.episode) + " AND season = " + str(self.season))
-
-		# use this list regardless of whether it's in there or not
-		sqlValues = [self.show.tvdbid, self.tvdbid, self.name, self.season, self.episode, self.description, self.airdate.toordinal(), self.hasnfo, self.hastbn, self.status, self.location]
+		newValueDict = {"tvdbid": self.tvdbid,
+					    "name": self.name,
+					    "description": self.description,
+					    "airdate": self.airdate.toordinal(),
+					    "hasnfo": self.hasnfo,
+					    "hastbn": self.hastbn,
+					    "status": self.status,
+					    "location": self.location}
+		controlValueDict = {"showid": self.show.tvdbid,
+						    "season": self.season,
+						    "episode": self.episode}
 		
-		# if it's not in there then insert it
-		if len(sqlResults) == 0:
-			sql = "INSERT INTO tv_episodes (showid, tvdbid, name, season, episode, description, airdate, hasnfo, hastbn, status, location) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
-
-		# if it's already there then just change it
-		elif len(sqlResults) == 1:
-			sql = "UPDATE tv_episodes SET showid=?, tvdbid=?, name=?, season=?, episode=?, description=?, airdate=?, hasnfo=?, hastbn=?, status=?, location=? WHERE showid=? AND season=? AND episode=?"
-			sqlValues += [self.show.tvdbid, self.season, self.episode]
-		else:
-			raise sickbeard.exceptions.LaterException("Multiple records for a single episode")
-		
-		myDB.action(sql, sqlValues)
+		# use a custom update/insert method to get the data into the DB
+		myDB.upsert("tv_episodes", newValueDict, controlValueDict)
 		
 		
 	def fullPath (self):
@@ -1382,7 +1397,7 @@ class TVEpisode:
 		else:
 			return os.path.join(self.show.location, self.location)
 		
-	def prettyName (self):
+	def prettyName (self, naming_show_name=None, naming_ep_type=None, naming_multi_ep_type=None):
 		
 		regex = "(.*) \(\d\)"
 
@@ -1405,10 +1420,9 @@ class TVEpisode:
 	
 				if curGoodName == None:
 					curGoodName = match.group(1)
-				else:
-					if curGoodName != match.group(1):
-						singleName = False
-						break
+				elif curGoodName != match.group(1):
+					singleName = False
+					break
 
 
 			if singleName:
@@ -1418,14 +1432,32 @@ class TVEpisode:
 				for relEp in self.relatedEps:
 					goodName += " & " + relEp.name
 		
-		goodEpString = "x%02i" % int(self.episode)
+		if naming_show_name == None:
+			naming_show_name = sickbeard.NAMING_SHOW_NAME
+		
+		if naming_ep_type == None:
+			naming_ep_type = sickbeard.NAMING_EP_TYPE
+		
+		if naming_multi_ep_type == None:
+			naming_multi_ep_type = sickbeard.NAMING_MULTI_EP_TYPE
+		
+		goodEpString = config.naming_ep_type[naming_ep_type] % {'seasonnumber': self.season, 'episodenumber': self.episode}
+		
 		for relEp in self.relatedEps:
-			goodEpString += "x%02i" % int(relEp.episode)
+			goodEpString += config.naming_multi_ep_type[naming_multi_ep_type][naming_ep_type] % {'seasonnumber': relEp.season, 'episodenumber': relEp.episode}
 		
 		if goodName != '':
 			goodName = ' - ' + goodName
 
-		return self.show.name + ' - ' + str(self.season) + goodEpString + goodName
+		finalName = ""
+		
+		if naming_show_name:
+			finalName += self.show.name + " - "
+
+		finalName += goodEpString
+		finalName += goodName
+
+		return finalName
 		
 		
 		
